@@ -1,7 +1,10 @@
 import mongoose from 'mongoose';
 import User from './models/User';
 
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/kcas_department_db';
+const MONGODB_URI =
+  process.env.MONGODB_URI ||
+  process.env.MONGO_URI ||
+  'mongodb+srv://santhosh:santhosh01@cluster0.wqvhoss.mongodb.net/kcas_department_db?appName=Cluster0';
 
 let cached = global.mongoose;
 

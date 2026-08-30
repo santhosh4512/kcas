@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../lib/AuthContext';
+import { API_BASE_URL } from '../../lib/api';
 import {
   LayoutDashboard,
   Building2,
@@ -26,6 +27,7 @@ import {
 export default function Sidebar({ mobileOpen, setMobileOpen }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const serverBase = (API_BASE_URL || '').replace(/\/api\/?$/, '');
 
   const navItems = [
     {
@@ -171,7 +173,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                     src={
                       (user.profilePhoto || user.avatar).startsWith('http') || (user.profilePhoto || user.avatar).startsWith('data:')
                         ? (user.profilePhoto || user.avatar)
-                        : `http://localhost:5001${(user.profilePhoto || user.avatar).startsWith('/') ? '' : '/'}${user.profilePhoto || user.avatar}`
+                        : `${serverBase}${(user.profilePhoto || user.avatar).startsWith('/') ? '' : '/'}${user.profilePhoto || user.avatar}`
                     }
                     alt={user.name}
                     className="h-full w-full object-cover"

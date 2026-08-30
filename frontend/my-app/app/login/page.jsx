@@ -100,13 +100,30 @@ export default function LoginPage() {
           }
         }, 300);
       } else {
-        setFormError('Invalid email or password');
-        error('Invalid email or password');
+        const msg = directRes.data?.message || 'Invalid email or password.';
+        setFormError(msg);
+        error(msg);
       }
     } catch (err) {
-      const errMsg =
-        err.response?.data?.message ||
-        (err.response?.status === 401 ? 'Invalid email or password' : 'Login failed. Please check your connection.');
+      let errMsg = 'Unable to connect to the server. Please check your internet connection or try again.';
+
+      if (err.response) {
+        const status = err.response.status;
+        const serverMsg = err.response.data?.message;
+
+        if (status === 401) {
+          errMsg = 'Invalid email or password.';
+        } else if (status === 403) {
+          errMsg = 'Your account is inactive or you do not have permission to access this system.';
+        } else if (status === 404) {
+          errMsg = 'Login service is unavailable. Please contact the administrator.';
+        } else if (status === 500) {
+          errMsg = 'Server error. Please try again later.';
+        } else if (serverMsg) {
+          errMsg = serverMsg;
+        }
+      }
+
       setFormError(errMsg);
       error(errMsg);
     } finally {

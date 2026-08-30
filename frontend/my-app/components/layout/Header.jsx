@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, ExternalLink, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
+import { API_BASE_URL } from '../../lib/api';
 import Link from 'next/link';
 
 export default function Header({ setMobileOpen, title, subtitle }) {
   const { user } = useAuth();
   const [timeStr, setTimeStr] = useState('');
+  const serverBase = (API_BASE_URL || '').replace(/\/api\/?$/, '');
 
   useEffect(() => {
     const updateTime = () => {
@@ -90,7 +92,7 @@ export default function Header({ setMobileOpen, title, subtitle }) {
                   src={
                     (user.profilePhoto || user.avatar).startsWith('http') || (user.profilePhoto || user.avatar).startsWith('data:')
                       ? (user.profilePhoto || user.avatar)
-                      : `http://localhost:5001${(user.profilePhoto || user.avatar).startsWith('/') ? '' : '/'}${user.profilePhoto || user.avatar}`
+                      : `${serverBase}${(user.profilePhoto || user.avatar).startsWith('/') ? '' : '/'}${user.profilePhoto || user.avatar}`
                   }
                   alt={user.name}
                   className="h-full w-full object-cover"

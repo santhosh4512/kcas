@@ -66,11 +66,25 @@ export function AuthProvider({ children }) {
         message: res.data?.message || 'Invalid email or password',
       };
     } catch (err) {
+      let errMsg = 'Unable to connect to the server. Please check your internet connection or try again.';
+      if (err.response) {
+        const status = err.response.status;
+        const serverMsg = err.response.data?.message;
+        if (status === 401) {
+          errMsg = 'Invalid email or password.';
+        } else if (status === 403) {
+          errMsg = 'Your account is inactive or you do not have permission to access this system.';
+        } else if (status === 404) {
+          errMsg = 'Login service is unavailable. Please contact the administrator.';
+        } else if (status === 500) {
+          errMsg = 'Server error. Please try again later.';
+        } else if (serverMsg) {
+          errMsg = serverMsg;
+        }
+      }
       return {
         success: false,
-        message:
-          err.response?.data?.message ||
-          (err.response?.status === 401 ? 'Invalid email or password' : 'Login failed. Please check your network connection.'),
+        message: errMsg,
       };
     }
   };

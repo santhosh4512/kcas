@@ -15,6 +15,9 @@ if (!API_BASE_URL) {
   }
 }
 
+// Clean up trailing slashes
+API_BASE_URL = API_BASE_URL.replace(/\/+$/, '');
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -42,7 +45,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && window.location.pathname !== '/') {
+      if (
+        typeof window !== 'undefined' &&
+        !window.location.pathname.startsWith('/login') &&
+        window.location.pathname !== '/'
+      ) {
         localStorage.removeItem('kcas_auth_token');
         localStorage.removeItem('kcas_user_data');
         window.location.href = '/login?sessionExpired=true';

@@ -9,16 +9,49 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// Enable CORS
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
-app.options('*', cors());
+// Allowed Origins for Production & Development
+const allowedOrigins = [
+  'https://kcas-h17twkmqk-jvl2.vercel.app',
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_URL,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5001',
+  'http://127.0.0.1:5001',
+].filter(Boolean);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow server-to-server, mobile webviews, or curl requests where origin is undefined
+    if (!origin) return callback(null, true);
+
+    // Check if origin matches allowed array
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Allow all *.vercel.app preview & production subdomains
+    if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    // Fallback for development & preview
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+
+    return callback(null, true); // Allow with credentials
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Disposition'],
+  optionsSuccessStatus: 204,
+};
+
+// Enable CORS & preflight
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
@@ -26,6 +59,17 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static profile uploads
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Health check route (Section 10 Requirement)
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Backend is running',
+    environment: process.env.NODE_ENV || 'development',
+    institution: 'Kamban College of Arts and Science for Women',
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Mount API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
@@ -43,17 +87,6 @@ app.use('/api/staff', require('./routes/staffRoutes'));
 app.use('/api/admins', require('./routes/adminManagementRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
 app.use('/api/audit-logs', require('./routes/auditLogRoutes'));
-
-// Health check route
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'KCAS Department Management API is running smoothly',
-    timestamp: new Date().toISOString(),
-    institution: 'Kamban College of Arts and Science for Women',
-    database: 'kcas_department_db',
-  });
-});
 
 // Centralized error handling
 app.use(errorHandler);
