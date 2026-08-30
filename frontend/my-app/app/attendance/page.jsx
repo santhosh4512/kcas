@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import Badge from '../../components/ui/Badge';
-import StatCard from '../../components/ui/StatCard';
 import api from '../../lib/api';
 import { useNotification } from '../../lib/NotificationContext';
 import { useAuth } from '../../lib/AuthContext';
@@ -18,6 +17,15 @@ import {
   History,
   CheckCheck,
   Calendar,
+  Layers,
+  Search,
+  Check,
+  Download,
+  Eye,
+  RefreshCw,
+  Sparkles,
+  BookOpen,
+  Award,
 } from 'lucide-react';
 
 export default function AttendancePage() {
@@ -28,9 +36,9 @@ export default function AttendancePage() {
   // Cohort Selection
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
-  const [selectedYear, setSelectedYear] = useState('I Year');
-  const [selectedSemester, setSelectedSemester] = useState('Semester 1');
-  const [selectedSection, setSelectedSection] = useState('A');
+  const [selectedYear, setSelectedYear] = useState('All');
+  const [selectedSemester, setSelectedSemester] = useState('All');
+  const [selectedSection, setSelectedSection] = useState('All');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -40,10 +48,11 @@ export default function AttendancePage() {
   const [saving, setSaving] = useState(false);
   const [isExisting, setIsExisting] = useState(false);
 
-  // Tab State: 'mark' | 'history' | 'summary'
+  // Tab State: 'mark' | 'summary' | 'history'
   const [activeTab, setActiveTab] = useState('mark');
   const [historyList, setHistoryList] = useState([]);
   const [classSummary, setClassSummary] = useState([]);
+  const [searchStudent, setSearchStudent] = useState('');
 
   const { success, error, warning } = useNotification();
   const { hasRole } = useAuth();
@@ -61,15 +70,25 @@ export default function AttendancePage() {
 
         if (dRes.data.success && dRes.data.data.length > 0) {
           setDepartments(dRes.data.data);
-          setSelectedDept(dRes.data.data[0]._id);
-        }
-        if (cRes.data.success && cRes.data.data.length > 0) {
-          setCourses(cRes.data.data);
-          setSelectedCourse(cRes.data.data[0]._id);
-        }
-        if (sRes.data.success && sRes.data.data.length > 0) {
-          setSubjects(sRes.data.data);
-          setSelectedSubject(sRes.data.data[0]._id);
+          const firstDeptId = dRes.data.data[0]._id;
+          setSelectedDept(firstDeptId);
+
+          if (cRes.data.success && cRes.data.data.length > 0) {
+            setCourses(cRes.data.data);
+            const deptCourses = cRes.data.data.filter(
+              (c) => String(c.department?._id || c.department) === String(firstDeptId)
+            );
+            const firstCourseId = deptCourses[0]?._id || cRes.data.data[0]._id;
+            setSelectedCourse(firstCourseId);
+
+            if (sRes.data.success && sRes.data.data.length > 0) {
+              setSubjects(sRes.data.data);
+              const courseSubjects = sRes.data.data.filter(
+                (s) => String(s.course?._id || s.course) === String(firstCourseId)
+              );
+              setSelectedSubject(courseSubjects[0]?._id || sRes.data.data[0]._id);
+            }
+          }
         }
       } catch (err) {
         error('Failed to load attendance criteria.');
@@ -79,9 +98,35 @@ export default function AttendancePage() {
     initDropdowns();
   }, []);
 
+  // Handle department change with cascading selection
+  const handleDepartmentChange = (deptId) => {
+    setSelectedDept(deptId);
+    const deptCourses = courses.filter(
+      (c) => String(c.department?._id || c.department) === String(deptId)
+    );
+    const newCourseId = deptCourses[0]?._id || (courses[0]?._id || '');
+    setSelectedCourse(newCourseId);
+
+    const courseSubjects = subjects.filter(
+      (s) => String(s.course?._id || s.course) === String(newCourseId)
+    );
+    setSelectedSubject(courseSubjects[0]?._id || (subjects[0]?._id || ''));
+  };
+
+  // Handle course change with cascading subjects
+  const handleCourseChange = (courseId) => {
+    setSelectedCourse(courseId);
+    const courseSubjects = subjects.filter(
+      (s) => String(s.course?._id || s.course) === String(courseId)
+    );
+    if (courseSubjects.length > 0) {
+      setSelectedSubject(courseSubjects[0]._id);
+    }
+  };
+
   // Fetch student mark sheet when filters change
   const fetchAttendanceSheet = async () => {
-    if (!selectedDept || !selectedCourse || !selectedSubject || !selectedDate) return;
+    if (!selectedDept || !selectedCourse || !selectedDate) return;
 
     setLoading(true);
     try {
@@ -102,18 +147,18 @@ export default function AttendancePage() {
         setIsExisting(res.data.exists);
       }
     } catch (err) {
-      error('Failed to fetch class attendance sheet.');
+      console.error('Attendance fetch error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === 'mark') {
+    if (activeTab === 'mark' && selectedDept && selectedCourse) {
       fetchAttendanceSheet();
-    } else if (activeTab === 'history') {
+    } else if (activeTab === 'history' && selectedDept) {
       fetchHistory();
-    } else if (activeTab === 'summary') {
+    } else if (activeTab === 'summary' && selectedDept && selectedCourse) {
       fetchSummary();
     }
   }, [selectedDept, selectedCourse, selectedYear, selectedSemester, selectedSection, selectedSubject, selectedDate, activeTab]);
@@ -159,7 +204,7 @@ export default function AttendancePage() {
   const handleMarkAll = (status) => {
     const updated = attendanceRecords.map((r) => ({ ...r, status }));
     setAttendanceRecords(updated);
-    success(`Marked all students as ${status}.`);
+    success(`Marked all ${attendanceRecords.length} students as ${status}!`);
   };
 
   const handleSaveAttendance = async () => {
@@ -168,22 +213,27 @@ export default function AttendancePage() {
       return;
     }
 
+    if (attendanceRecords.length === 0) {
+      warning('No students in list to record attendance.');
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
         department: selectedDept,
         course: selectedCourse,
-        year: selectedYear,
-        semester: selectedSemester,
-        section: selectedSection,
-        subject: selectedSubject,
+        year: selectedYear === 'All' ? 'I Year' : selectedYear,
+        semester: selectedSemester === 'All' ? 'Semester 1' : selectedSemester,
+        section: selectedSection === 'All' ? 'A' : selectedSection,
+        subject: selectedSubject || undefined,
         date: selectedDate,
         records: attendanceRecords,
       };
 
       const res = await api.post('/attendance/save', payload);
       if (res.data.success) {
-        success('Class attendance saved successfully!');
+        success('Class attendance saved & student profiles updated successfully!');
         setIsExisting(true);
       }
     } catch (err) {
@@ -197,73 +247,146 @@ export default function AttendancePage() {
     (r) => r.status === 'Present' || r.status === 'On Duty'
   ).length;
   const absentCount = attendanceRecords.filter((r) => r.status === 'Absent').length;
+  const odCount = attendanceRecords.filter((r) => r.status === 'On Duty').length;
   const totalCount = attendanceRecords.length;
   const attendanceRate = totalCount > 0 ? Math.round((presentCount / totalCount) * 1000) / 10 : 0;
 
+  const filteredRecords = attendanceRecords.filter((r) => {
+    if (!searchStudent) return true;
+    const q = searchStudent.toLowerCase();
+    return (
+      r.name?.toLowerCase().includes(q) ||
+      r.registerNumber?.toLowerCase().includes(q) ||
+      r.rollNumber?.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <DashboardLayout
-      title="Attendance Management"
-      subtitle="Track daily student presence, subject attendance, and identify shortages"
+      title="Attendance & Daily Roster Governance"
+      subtitle="Track daily student presence, subject attendance, and identify shortage candidates"
     >
-      {/* Top Filter Selection Panel */}
-      <div className="mb-6 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-          <Calendar className="h-4 w-4 text-blue-600" />
-          Select Class Cohort & Subject
-        </h3>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-xs">
+      {/* Grand Neo-Classic Banner */}
+      <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-[#0E1B2E] via-[#162A45] to-[#4A0E18] p-6 md:p-8 text-white shadow-2xl border-2 border-[#C5A059]/40">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Department</label>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#C5A059]/60 bg-[#FAF0E6]/10 px-3.5 py-1 text-xs font-classic font-bold text-[#F3E5AB] mb-3 backdrop-blur-md">
+              <CalendarCheck className="h-3.5 w-3.5 text-[#C5A059]" />
+              <span>Institutional Attendance Governance</span>
+            </div>
+            <h2 className="font-classic text-xl md:text-3xl font-black tracking-wide text-white uppercase">
+              Daily Classroom Attendance Register
+            </h2>
+            <p className="mt-1 text-xs md:text-sm text-[#E8E2D5]/90 font-sans max-w-xl">
+              Select Department & Class stream to immediately mark student presence (Present, Absent, On-Duty) and synchronize talent discipline ratings.
+            </p>
+          </div>
+
+          {/* Quick Date Indicator */}
+          <div className="p-4 rounded-2xl border border-[#C5A059]/40 bg-[#0E1B2E]/60 backdrop-blur-md text-xs text-right">
+            <span className="text-[10px] font-classic font-bold uppercase tracking-wider text-[#C5A059]">Active Date:</span>
+            <p className="font-mono font-black text-lg text-white mt-0.5">{selectedDate}</p>
+            <span className="text-[10px] text-emerald-400 font-bold">
+              {isExisting ? '✓ Recorded in Database' : '⚡ Live Pending Submission'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* STEPPED SELECTION FILTER BAR */}
+      <div className="mb-6 rounded-3xl border border-[#C5A059]/40 bg-white/95 p-5 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#E8E2D5] pb-3 mb-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-[#6D1B29]" />
+            <h3 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">
+              Step 1 & 2: Select Department, Class & Date
+            </h3>
+          </div>
+          <button
+            onClick={fetchAttendanceSheet}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-[#0E1B2E] bg-[#FAF0E6] hover:bg-[#FAF0E6]/80 rounded-xl border border-[#C5A059]/40 transition shadow-2xs"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh Roster</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 text-xs">
+          <div>
+            <label className="block text-[11px] font-bold text-[#6D1B29] uppercase mb-1">
+              1. Department *
+            </label>
             <select
               value={selectedDept}
-              onChange={(e) => setSelectedDept(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-2 font-medium text-slate-800 focus:outline-hidden"
+              onChange={(e) => handleDepartmentChange(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white p-2.5 font-medium text-[#0E1B2E] focus:border-[#6D1B29] focus:outline-hidden"
             >
               {departments.map((d) => (
                 <option key={d._id} value={d._id}>
-                  {d.name} ({d.code})
+                  {d.code} - {d.name}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Course Program</label>
+            <label className="block text-[11px] font-bold text-[#6D1B29] uppercase mb-1">
+              2. Class / Degree Course *
+            </label>
             <select
               value={selectedCourse}
-              onChange={(e) => setSelectedCourse(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-2 font-medium text-slate-800 focus:outline-hidden"
+              onChange={(e) => handleCourseChange(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white p-2.5 font-medium text-[#0E1B2E] focus:border-[#6D1B29] focus:outline-hidden"
             >
-              {courses.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.courseName} ({c.courseCode})
-                </option>
-              ))}
+              {courses
+                .filter(
+                  (c) =>
+                    !selectedDept ||
+                    String(c.department?._id || c.department) === String(selectedDept)
+                )
+                .map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.courseCode} - {c.courseName}
+                  </option>
+                ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Year</label>
+            <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">
+              Subject Unit
+            </label>
             <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-2 font-medium text-slate-800 focus:outline-hidden"
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white p-2.5 font-medium text-[#0E1B2E] focus:border-[#6D1B29] focus:outline-hidden"
             >
-              <option value="I Year">I Year</option>
-              <option value="II Year">II Year</option>
-              <option value="III Year">III Year</option>
-              <option value="IV Year">IV Year</option>
+              <option value="">-- All / General Class --</option>
+              {subjects
+                .filter(
+                  (s) =>
+                    !selectedCourse ||
+                    String(s.course?._id || s.course) === String(selectedCourse)
+                )
+                .map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.subjectCode} - {s.subjectName}
+                  </option>
+                ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Semester</label>
+            <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">
+              Semester
+            </label>
             <select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-2 font-medium text-slate-800 focus:outline-hidden"
+              className="w-full rounded-xl border border-slate-200 bg-white p-2.5 font-medium text-[#0E1B2E] focus:border-[#6D1B29] focus:outline-hidden"
             >
+              <option value="All">All Semesters</option>
               {['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6'].map(
                 (s) => (
                   <option key={s} value={s}>
@@ -275,347 +398,341 @@ export default function AttendancePage() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Section</label>
-            <select
-              value={selectedSection}
-              onChange={(e) => setSelectedSection(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-2 font-medium text-slate-800 focus:outline-hidden"
-            >
-              <option value="A">Section A</option>
-              <option value="B">Section B</option>
-              <option value="C">Section C</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Subject</label>
-            <select
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-2 font-medium text-slate-800 focus:outline-hidden"
-            >
-              {subjects.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.subjectCode} - {s.subjectName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Date</label>
+            <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">
+              Date *
+            </label>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-2 font-medium text-slate-800 focus:outline-hidden"
+              className="w-full rounded-xl border border-slate-200 bg-white p-2.5 font-bold font-mono text-[#0E1B2E] focus:border-[#6D1B29] focus:outline-hidden"
             />
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-3">
-        <div className="flex items-center gap-2">
+      {/* KPI METRIC CARDS */}
+      <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="rounded-3xl border border-[#C5A059]/30 bg-white/95 p-4.5 text-center shadow-xs">
+          <span className="font-classic text-[10px] font-bold text-[#6D1B29] uppercase tracking-wider">Class Strength</span>
+          <p className="text-2xl font-black font-mono text-[#0E1B2E] mt-1">{totalCount}</p>
+          <span className="text-[10px] text-slate-400 font-medium">Enrolled Scholars</span>
+        </div>
+        <div className="rounded-3xl border border-emerald-300 bg-emerald-50/80 p-4.5 text-center shadow-xs">
+          <span className="font-classic text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Present</span>
+          <p className="text-2xl font-black font-mono text-emerald-800 mt-1">{presentCount}</p>
+          <span className="text-[10px] text-emerald-600 font-bold">In Attendance</span>
+        </div>
+        <div className="rounded-3xl border border-rose-300 bg-rose-50/80 p-4.5 text-center shadow-xs">
+          <span className="font-classic text-[10px] font-bold text-rose-800 uppercase tracking-wider">Absent</span>
+          <p className="text-2xl font-black font-mono text-rose-800 mt-1">{absentCount}</p>
+          <span className="text-[10px] text-rose-600 font-bold">Unexcused / Absent</span>
+        </div>
+        <div className="rounded-3xl border border-[#C5A059]/50 bg-[#FAF0E6]/80 p-4.5 text-center shadow-xs">
+          <span className="font-classic text-[10px] font-bold text-[#6D1B29] uppercase tracking-wider">Attendance %</span>
+          <p className="text-2xl font-black font-mono text-[#6D1B29] mt-1">{attendanceRate}%</p>
+          <span className="text-[10px] text-[#9A7B39] font-bold">OD Count: {odCount}</span>
+        </div>
+      </div>
+
+      {/* TABS & BULK ACTIONS */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#E8E2D5] pb-4">
+        <div className="flex items-center gap-2 p-1 rounded-2xl bg-[#F0EBE1] border border-[#C5A059]/30">
           <button
             onClick={() => setActiveTab('mark')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
               activeTab === 'mark'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                ? 'bg-[#6D1B29] text-white shadow-sm font-classic'
+                : 'text-[#5A6A80] hover:text-[#0E1B2E]'
             }`}
           >
             <CalendarCheck className="h-4 w-4" />
-            Class Mark Sheet
+            <span>Mark Attendance Sheet</span>
           </button>
           <button
             onClick={() => setActiveTab('summary')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
               activeTab === 'summary'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                ? 'bg-[#0E1B2E] text-[#F3E5AB] shadow-sm font-classic'
+                : 'text-[#5A6A80] hover:text-[#0E1B2E]'
             }`}
           >
             <Users className="h-4 w-4" />
-            Class % Summary
+            <span>Class % Summary</span>
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
               activeTab === 'history'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                ? 'bg-[#0E1B2E] text-[#F3E5AB] shadow-sm font-classic'
+                : 'text-[#5A6A80] hover:text-[#0E1B2E]'
             }`}
           >
             <History className="h-4 w-4" />
-            Session History
+            <span>Session Logs</span>
           </button>
         </div>
 
+        {/* Quick Bulk Action Buttons */}
         {activeTab === 'mark' && canMark && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => handleMarkAll('Present')}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition"
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-xl hover:bg-emerald-100 transition shadow-2xs"
             >
-              <CheckCheck className="h-4 w-4" />
-              Mark All Present
+              <CheckCheck className="h-4 w-4 text-emerald-600" />
+              <span>Mark All Present</span>
+            </button>
+            <button
+              onClick={() => handleMarkAll('Absent')}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-rose-800 bg-rose-50 border border-rose-300 rounded-xl hover:bg-rose-100 transition shadow-2xs"
+            >
+              <XCircle className="h-4 w-4 text-rose-600" />
+              <span>Mark All Absent</span>
             </button>
             <button
               onClick={handleSaveAttendance}
               disabled={saving || totalCount === 0}
-              className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition shadow-xs disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-[#6D1B29] hover:bg-[#8C2234] rounded-xl transition shadow-md disabled:opacity-50 font-classic"
             >
               {saving ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              {isExisting ? 'Update Attendance' : 'Save Attendance'}
+              <span>{isExisting ? 'Update Class Attendance' : 'Save Attendance Record'}</span>
             </button>
           </div>
         )}
       </div>
 
-      {/* TAB 1: MARK SHEET */}
+      {/* TAB 1: ATTENDANCE ENTRY SHEET */}
       {activeTab === 'mark' && (
-        <div className="space-y-6">
-          {/* Live Attendance Metric Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase">Total Strength</span>
-              <p className="text-2xl font-bold text-slate-900 mt-0.5">{totalCount}</p>
+        <div className="rounded-3xl border border-[#C5A059]/30 bg-white/95 shadow-sm overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4.5 border-b border-[#E8E2D5] bg-[#FBF9F5] gap-3">
+            <div>
+              <h4 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">
+                Student Attendance Roster ({filteredRecords.length} Students)
+              </h4>
+              <p className="text-xs text-[#64748B]">
+                Click Present / Absent / On-Duty button for each student, then click &quot;Save Attendance Record&quot;.
+              </p>
             </div>
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-center">
-              <span className="text-[11px] font-semibold text-emerald-700 uppercase">Present</span>
-              <p className="text-2xl font-bold text-emerald-700 mt-0.5">{presentCount}</p>
-            </div>
-            <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4 text-center">
-              <span className="text-[11px] font-semibold text-rose-700 uppercase">Absent</span>
-              <p className="text-2xl font-bold text-rose-700 mt-0.5">{absentCount}</p>
-            </div>
-            <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-center">
-              <span className="text-[11px] font-semibold text-blue-700 uppercase">Daily Attendance</span>
-              <p className="text-2xl font-bold text-blue-700 mt-0.5">{attendanceRate}%</p>
+
+            {/* Quick Student Search */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by student name or reg..."
+                value={searchStudent}
+                onChange={(e) => setSearchStudent(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 py-1.5 text-xs text-[#0E1B2E] focus:outline-hidden"
+              />
             </div>
           </div>
 
-          {/* Student Mark Sheet Table */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <div>
-                <h4 className="text-xs font-bold text-slate-800">
-                  Student List for {selectedDate}
-                </h4>
-                <p className="text-[11px] text-slate-500">
-                  Click on status buttons to toggle presence
-                </p>
-              </div>
-              {isExisting && (
-                <Badge variant="primary" size="sm">
-                  ✓ Recorded Session
-                </Badge>
-              )}
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 text-[11px] font-bold uppercase text-slate-500 border-b border-slate-200">
-                  <tr>
-                    <th className="px-5 py-3">#</th>
-                    <th className="px-5 py-3">Register No</th>
-                    <th className="px-5 py-3">Roll No</th>
-                    <th className="px-5 py-3">Student Name</th>
-                    <th className="px-5 py-3 text-center">Attendance Status</th>
-                    <th className="px-5 py-3">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-xs text-slate-500">
-                        Loading student mark sheet...
-                      </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-[#0E1B2E]">
+              <thead className="bg-[#FAF0E6]/60 text-[10px] font-classic font-black uppercase tracking-wider text-[#6D1B29] border-b border-[#E8E2D5]">
+                <tr>
+                  <th className="px-5 py-3.5">#</th>
+                  <th className="px-5 py-3.5">Register No</th>
+                  <th className="px-5 py-3.5">Roll No</th>
+                  <th className="px-5 py-3.5">Student Name</th>
+                  <th className="px-5 py-3.5 text-center">Attendance Status</th>
+                  <th className="px-5 py-3.5">Remarks</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F0EBE1]">
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td colSpan={6} className="px-5 py-4 text-center text-slate-400">Loading student attendance roster...</td>
                     </tr>
-                  ) : attendanceRecords.length > 0 ? (
-                    attendanceRecords.map((record, index) => (
-                      <tr key={record.studentId || index} className="hover:bg-slate-50/60 transition">
-                        <td className="px-5 py-3 font-semibold text-slate-400">{index + 1}</td>
-                        <td className="px-5 py-3 font-mono font-bold text-blue-700">
-                          {record.registerNumber}
+                  ))
+                ) : filteredRecords.length > 0 ? (
+                  filteredRecords.map((record, index) => {
+                    const originalIdx = attendanceRecords.findIndex((r) => r.studentId === record.studentId);
+                    return (
+                      <tr key={record.studentId || index} className="hover:bg-[#FAF0E6]/30 transition-colors">
+                        <td className="px-5 py-3.5 font-mono text-slate-400">{index + 1}</td>
+                        <td className="px-5 py-3.5">
+                          <span className="font-mono font-bold text-[#6D1B29] bg-[#FAF0E6] px-2 py-0.5 rounded border border-[#C5A059]/30">
+                            {record.registerNumber}
+                          </span>
                         </td>
-                        <td className="px-5 py-3 font-medium text-slate-700">{record.rollNumber}</td>
-                        <td className="px-5 py-3 font-bold text-slate-900">{record.name}</td>
-                        <td className="px-5 py-3">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="px-5 py-3.5 font-medium text-slate-700">{record.rollNumber || '-'}</td>
+                        <td className="px-5 py-3.5 font-bold text-[#0E1B2E]">{record.name}</td>
+                        <td className="px-5 py-3.5 text-center">
+                          <div className="inline-flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200">
                             <button
                               type="button"
-                              onClick={() => handleStatusToggle(index, 'Present')}
-                              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs transition ${
+                              onClick={() => handleStatusToggle(originalIdx, 'Present')}
+                              className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
                                 record.status === 'Present'
                                   ? 'bg-emerald-600 text-white shadow-xs'
-                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  : 'text-slate-600 hover:text-emerald-700'
                               }`}
                             >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
                               Present
                             </button>
-
                             <button
                               type="button"
-                              onClick={() => handleStatusToggle(index, 'Absent')}
-                              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs transition ${
+                              onClick={() => handleStatusToggle(originalIdx, 'Absent')}
+                              className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
                                 record.status === 'Absent'
                                   ? 'bg-rose-600 text-white shadow-xs'
-                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  : 'text-slate-600 hover:text-rose-700'
                               }`}
                             >
-                              <XCircle className="h-3.5 w-3.5" />
                               Absent
                             </button>
-
                             <button
                               type="button"
-                              onClick={() => handleStatusToggle(index, 'On Duty')}
-                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-semibold text-xs transition ${
+                              onClick={() => handleStatusToggle(originalIdx, 'On Duty')}
+                              className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
                                 record.status === 'On Duty'
-                                  ? 'bg-blue-600 text-white shadow-xs'
-                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  ? 'bg-amber-600 text-white shadow-xs'
+                                  : 'text-slate-600 hover:text-amber-700'
                               }`}
                             >
                               OD
                             </button>
                           </div>
                         </td>
-                        <td className="px-5 py-3">
+                        <td className="px-5 py-3.5">
                           <input
                             type="text"
+                            placeholder="Optional remark..."
                             value={record.remarks || ''}
                             onChange={(e) => {
                               const updated = [...attendanceRecords];
-                              updated[index].remarks = e.target.value;
+                              updated[originalIdx].remarks = e.target.value;
                               setAttendanceRecords(updated);
                             }}
-                            placeholder="Optional remark..."
-                            className="w-full rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden"
+                            className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-[#0E1B2E] bg-white focus:outline-hidden"
                           />
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-xs text-slate-500">
-                        No active students found in this cohort.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-12 text-center text-slate-400">
+                      No enrolled students found for the selected Department & Class. Choose a different department or class.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* TAB 2: CLASS ATTENDANCE SUMMARY & SHORTAGE */}
+      {/* TAB 2: CLASS SUMMARY */}
       {activeTab === 'summary' && (
-        <div className="space-y-4">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <div>
-                <h4 className="text-xs font-bold text-slate-800">
-                  Cumulative Class Attendance Rate
-                </h4>
-                <p className="text-[11px] text-slate-500">
-                  Total sessions tracked with color-coded status badges
-                </p>
-              </div>
-            </div>
+        <div className="rounded-3xl border border-[#C5A059]/30 bg-white/95 shadow-sm overflow-hidden">
+          <div className="p-4.5 border-b border-[#E8E2D5] bg-[#FBF9F5]">
+            <h4 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">
+              Class Attendance Aggregate & Shortage Analysis
+            </h4>
+            <p className="text-xs text-[#64748B]">Students below 75% attendance are flagged for condonation / remedial action</p>
+          </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 text-[11px] font-bold uppercase text-slate-500 border-b border-slate-200">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-[#0E1B2E]">
+              <thead className="bg-[#FAF0E6]/60 text-[10px] font-classic font-black uppercase tracking-wider text-[#6D1B29] border-b border-[#E8E2D5]">
+                <tr>
+                  <th className="px-5 py-3.5">Register No</th>
+                  <th className="px-5 py-3.5">Student Name</th>
+                  <th className="px-5 py-3.5 text-center">Total Sessions</th>
+                  <th className="px-5 py-3.5 text-center">Present</th>
+                  <th className="px-5 py-3.5 text-center">Absent</th>
+                  <th className="px-5 py-3.5 text-center">Attendance %</th>
+                  <th className="px-5 py-3.5 text-center">Eligibility Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F0EBE1]">
+                {classSummary.length > 0 ? (
+                  classSummary.map((st) => {
+                    const isShortage = st.percentage < 75;
+                    return (
+                      <tr key={st._id} className="hover:bg-[#FAF0E6]/30">
+                        <td className="px-5 py-3.5 font-mono font-bold text-[#6D1B29]">{st.registerNumber}</td>
+                        <td className="px-5 py-3.5 font-bold text-[#0E1B2E]">{st.name}</td>
+                        <td className="px-5 py-3.5 text-center font-mono">{st.totalSessions || 0}</td>
+                        <td className="px-5 py-3.5 text-center font-mono font-bold text-emerald-700">{st.presentSessions || 0}</td>
+                        <td className="px-5 py-3.5 text-center font-mono font-bold text-rose-700">{st.absentSessions || 0}</td>
+                        <td className="px-5 py-3.5 text-center font-mono font-black text-sm">
+                          <span className={isShortage ? 'text-rose-700' : 'text-emerald-700'}>
+                            {st.percentage || 0}%
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          <Badge variant={isShortage ? 'danger' : 'gold'} size="sm">
+                            {isShortage ? '⚠️ Shortage (<75%)' : '✓ Exam Eligible'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
                   <tr>
-                    <th className="px-5 py-3">Register No</th>
-                    <th className="px-5 py-3">Student Name</th>
-                    <th className="px-5 py-3 text-center">Total Sessions</th>
-                    <th className="px-5 py-3 text-center">Present</th>
-                    <th className="px-5 py-3 text-center">Attendance %</th>
-                    <th className="px-5 py-3 text-center">Status</th>
+                    <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
+                      No attendance data recorded yet for this cohort.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {classSummary.map((st) => (
-                    <tr key={st.studentId} className="hover:bg-slate-50/60 transition">
-                      <td className="px-5 py-3 font-mono font-bold text-blue-700">
-                        {st.registerNumber}
-                      </td>
-                      <td className="px-5 py-3 font-bold text-slate-900">{st.name}</td>
-                      <td className="px-5 py-3 text-center font-medium">{st.totalSessions}</td>
-                      <td className="px-5 py-3 text-center font-semibold text-emerald-700">
-                        {st.presentCount}
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <span className="font-extrabold text-sm text-slate-900">{st.percentage}%</span>
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <Badge
-                          variant={
-                            st.status === 'Healthy'
-                              ? 'success'
-                              : st.status === 'Warning'
-                              ? 'warning'
-                              : 'danger'
-                          }
-                          size="sm"
-                        >
-                          {st.status}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
       {/* TAB 3: SESSION HISTORY */}
       {activeTab === 'history' && (
-        <div className="space-y-4">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-              <h4 className="text-xs font-bold text-slate-800">Recorded Attendance Sessions</h4>
-            </div>
+        <div className="rounded-3xl border border-[#C5A059]/30 bg-white/95 shadow-sm overflow-hidden">
+          <div className="p-4.5 border-b border-[#E8E2D5] bg-[#FBF9F5]">
+            <h4 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">
+              Historical Attendance Sessions
+            </h4>
+            <p className="text-xs text-[#64748B]">All past attendance dates recorded for this department & course</p>
+          </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 text-[11px] font-bold uppercase text-slate-500 border-b border-slate-200">
-                  <tr>
-                    <th className="px-5 py-3">Date</th>
-                    <th className="px-5 py-3">Subject</th>
-                    <th className="px-5 py-3">Total Students</th>
-                    <th className="px-5 py-3">Present</th>
-                    <th className="px-5 py-3">Absent</th>
-                    <th className="px-5 py-3">Recorded By</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {historyList.map((h) => (
-                    <tr key={h._id} className="hover:bg-slate-50/60 transition">
-                      <td className="px-5 py-3 font-semibold text-slate-900">{h.date}</td>
-                      <td className="px-5 py-3 font-medium text-slate-700">
-                        {h.subject?.subjectName} ({h.subject?.subjectCode})
-                      </td>
-                      <td className="px-5 py-3">{h.totalStudents}</td>
-                      <td className="px-5 py-3 font-bold text-emerald-700">{h.presentCount}</td>
-                      <td className="px-5 py-3 font-bold text-rose-700">{h.absentCount}</td>
-                      <td className="px-5 py-3 text-slate-500">{h.markedBy?.name || 'Admin'}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-[#0E1B2E]">
+              <thead className="bg-[#FAF0E6]/60 text-[10px] font-classic font-black uppercase tracking-wider text-[#6D1B29] border-b border-[#E8E2D5]">
+                <tr>
+                  <th className="px-5 py-3.5">Date</th>
+                  <th className="px-5 py-3.5">Subject</th>
+                  <th className="px-5 py-3.5 text-center">Total Strength</th>
+                  <th className="px-5 py-3.5 text-center">Present</th>
+                  <th className="px-5 py-3.5 text-center">Absent</th>
+                  <th className="px-5 py-3.5 text-center">Attendance Rate</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F0EBE1]">
+                {historyList.length > 0 ? (
+                  historyList.map((h) => (
+                    <tr key={h._id} className="hover:bg-[#FAF0E6]/30">
+                      <td className="px-5 py-3.5 font-mono font-bold text-[#6D1B29]">{h.date}</td>
+                      <td className="px-5 py-3.5 font-medium text-[#0E1B2E]">{h.subject?.subjectName || 'General Class'}</td>
+                      <td className="px-5 py-3.5 text-center font-mono font-bold">{h.total}</td>
+                      <td className="px-5 py-3.5 text-center font-mono font-bold text-emerald-700">{h.present}</td>
+                      <td className="px-5 py-3.5 text-center font-mono font-bold text-rose-700">{h.absent}</td>
+                      <td className="px-5 py-3.5 text-center font-mono font-bold text-[#6D1B29]">{h.percentage}%</td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-12 text-center text-slate-400">
+                      No historical sessions recorded for this class yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

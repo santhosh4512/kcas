@@ -454,21 +454,46 @@ export default function StudentsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-semibold text-slate-700 focus:outline-hidden"
+              onChange={(e) => {
+                setDeptFilter(e.target.value);
+                setCourseFilter('All');
+                setCurrentPage(1);
+              }}
+              className="rounded-xl border border-[#C5A059]/40 bg-white py-2 px-3 text-xs font-semibold text-[#0E1B2E] focus:outline-hidden"
             >
               <option value="All">All Departments</option>
               {departments.map((d) => (
                 <option key={d._id} value={d._id}>
-                  {d.name} ({d.code})
+                  {d.code} - {d.name}
                 </option>
               ))}
             </select>
 
             <select
+              value={courseFilter}
+              onChange={(e) => {
+                setCourseFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="rounded-xl border border-[#C5A059]/40 bg-white py-2 px-3 text-xs font-semibold text-[#0E1B2E] focus:outline-hidden"
+            >
+              <option value="All">All Classes / Courses</option>
+              {courses
+                .filter((c) => deptFilter === 'All' || String(c.department?._id || c.department) === String(deptFilter))
+                .map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.courseCode} - {c.courseName}
+                  </option>
+                ))}
+            </select>
+
+            <select
               value={yearFilter}
-              onChange={(e) => setYearFilter(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-semibold text-slate-700 focus:outline-hidden"
+              onChange={(e) => {
+                setYearFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-semibold text-[#0E1B2E] focus:outline-hidden"
             >
               <option value="All">All Years</option>
               <option value="I Year">I Year</option>
@@ -931,10 +956,18 @@ export default function StudentsPage() {
               )}
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <a
+                href={`/marks`}
+                className="px-4 py-2 text-xs font-bold text-[#6D1B29] bg-[#FAF0E6] border border-[#C5A059]/40 hover:bg-[#F3E5AB]/40 rounded-xl transition flex items-center gap-1.5 font-classic"
+              >
+                <Award className="h-4 w-4 text-[#C5A059]" />
+                <span>View Semester Marksheets & Results</span>
+              </a>
+
               <button
                 onClick={() => setIsProfileOpen(false)}
-                className="px-5 py-2 text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 rounded-xl transition"
+                className="px-5 py-2 text-xs font-bold text-white bg-[#0E1B2E] hover:bg-[#162A45] rounded-xl transition"
               >
                 Close Profile
               </button>

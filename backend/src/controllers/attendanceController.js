@@ -14,10 +14,10 @@ exports.getAttendanceSheet = async (req, res, next) => {
   try {
     const { department, course, year, semester, section = 'A', subject, date } = req.query;
 
-    if (!department || !course || !subject || !date) {
+    if (!department || !course || !date) {
       return res.status(400).json({
         success: false,
-        message: 'Department, Course, Subject, and Date are required parameters.',
+        message: 'Department, Course, and Date are required parameters.',
       });
     }
 
@@ -25,24 +25,30 @@ exports.getAttendanceSheet = async (req, res, next) => {
     const studentQuery = {
       department,
       course,
-      year,
-      semester,
       status: 'Active',
     };
+    if (year && year !== 'All') studentQuery.year = year;
+    if (semester && semester !== 'All') studentQuery.semester = semester;
     if (section && section !== 'All') {
       studentQuery.section = section;
     }
 
-    const students = await Student.find(studentQuery).sort({ registerNumber: 1 });
+    let students = await Student.find(studentQuery).sort({ registerNumber: 1 });
+    // Fallback to department + course if strict section/year mismatch occurs
+    if (students.length === 0) {
+      students = await Student.find({ department, course, status: 'Active' }).sort({ registerNumber: 1 });
+    }
 
     // 2. Check if attendance already recorded for this subject on this date
-    const existingAttendance = await Attendance.findOne({
+    const attendanceFilter = {
       department,
       course,
-      subject,
       date,
-      section: section || 'A',
-    });
+    };
+    if (subject && subject !== 'All') attendanceFilter.subject = subject;
+    if (section && section !== 'All') attendanceFilter.section = section;
+
+    const existingAttendance = await Attendance.findOne(attendanceFilter);
 
     // 3. Build attendance record list
     const sheetData = students.map((st) => {

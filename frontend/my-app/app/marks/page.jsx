@@ -33,10 +33,14 @@ import {
   GraduationCap,
   Eye,
   RefreshCw,
+  Layers,
+  Check,
+  ChevronRight,
+  User,
 } from 'lucide-react';
 
 export default function MarksPage() {
-  const [activeTab, setActiveTab] = useState('ledger'); // 'ledger' | 'batch'
+  const [activeTab, setActiveTab] = useState('wizard'); // 'wizard' | 'ledger' | 'batch'
   const [marks, setMarks] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -68,15 +72,16 @@ export default function MarksPage() {
   const [transcriptData, setTranscriptData] = useState(null);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
 
-  // Form State for Single Entry / Edit
-  const [formData, setFormData] = useState({
-    studentId: '',
-    subjectId: '',
-    semester: 'Semester 1',
-    internalMark: 20,
-    externalMark: 60,
-  });
-  const [formLoading, setFormLoading] = useState(false);
+  // Step-by-Step Mark Entry State (Wizard & Modal)
+  const [wizardDept, setWizardDept] = useState('');
+  const [wizardCourse, setWizardCourse] = useState('');
+  const [wizardStudent, setWizardStudent] = useState('');
+  const [wizardSemester, setWizardSemester] = useState('Semester 1');
+  const [wizardSubject, setWizardSubject] = useState('');
+  const [wizardInternal, setWizardInternal] = useState(20);
+  const [wizardExternal, setWizardExternal] = useState(60);
+  const [wizardStudentSearch, setWizardStudentSearch] = useState('');
+  const [wizardSaving, setWizardSaving] = useState(false);
 
   // Batch Class Mark Entry State
   const [batchDept, setBatchDept] = useState('');
@@ -132,7 +137,7 @@ export default function MarksPage() {
         api.get('/departments'),
         api.get('/courses'),
         api.get('/subjects'),
-        api.get('/students', { params: { limit: 150 } }),
+        api.get('/students', { params: { limit: 200 } }),
       ]);
 
       if (marksRes.data.success) {
@@ -141,24 +146,45 @@ export default function MarksPage() {
         setTotalRecords(marksRes.data.total || 0);
         setAnalytics(marksRes.data.analytics);
       }
-      if (deptsRes.data.success) {
+      if (deptsRes.data.success && deptsRes.data.data.length > 0) {
         setDepartments(deptsRes.data.data);
-        if (!batchDept && deptsRes.data.data.length > 0) {
-          setBatchDept(deptsRes.data.data[0]._id);
+        const firstDeptId = deptsRes.data.data[0]._id;
+
+        if (!wizardDept) {
+          setWizardDept(firstDeptId);
+          setBatchDept(firstDeptId);
+
+          if (crsRes.data.success && crsRes.data.data.length > 0) {
+            const deptCourses = crsRes.data.data.filter(
+              (c) => String(c.department?._id || c.department) === String(firstDeptId)
+            );
+            const firstCourseId = deptCourses[0]?._id || crsRes.data.data[0]._id;
+            setWizardCourse(firstCourseId);
+            setBatchCourse(firstCourseId);
+
+            if (subsRes.data.success && subsRes.data.data.length > 0) {
+              const courseSubjects = subsRes.data.data.filter(
+                (s) => String(s.course?._id || s.course) === String(firstCourseId)
+              );
+              setWizardSubject(courseSubjects[0]?._id || subsRes.data.data[0]._id);
+              setBatchSubject(courseSubjects[0]?._id || subsRes.data.data[0]._id);
+            }
+
+            if (stusRes.data.success && stusRes.data.data.length > 0) {
+              const classStudents = stusRes.data.data.filter(
+                (st) =>
+                  String(st.department?._id || st.department) === String(firstDeptId) &&
+                  String(st.course?._id || st.course) === String(firstCourseId)
+              );
+              if (classStudents.length > 0) {
+                setWizardStudent(classStudents[0]._id);
+              }
+            }
+          }
         }
       }
-      if (crsRes.data.success) {
-        setCourses(crsRes.data.data);
-        if (!batchCourse && crsRes.data.data.length > 0) {
-          setBatchCourse(crsRes.data.data[0]._id);
-        }
-      }
-      if (subsRes.data.success) {
-        setSubjects(subsRes.data.data);
-        if (!batchSubject && subsRes.data.data.length > 0) {
-          setBatchSubject(subsRes.data.data[0]._id);
-        }
-      }
+      if (crsRes.data.success) setCourses(crsRes.data.data);
+      if (subsRes.data.success) setSubjects(subsRes.data.data);
       if (stusRes.data.success) setStudents(stusRes.data.data);
     } catch (err) {
       error('Failed to load marks and results.');
@@ -171,32 +197,128 @@ export default function MarksPage() {
     fetchData();
   }, [currentPage, deptFilter, courseFilter, semesterFilter, subjectFilter, resultFilter, search]);
 
-  // Load Batch Class Sheet
-  const loadBatchClassSheet = async () => {
-    if (!batchSubject) {
-      warning('Please select a subject to load marks entry sheet.');
+  // Step 1: Department change in Wizard
+  const handleWizardDeptChange = (deptId) => {
+    setWizardDept(deptId);
+    const deptCourses = courses.filter(
+      (c) => String(c.department?._id || c.department) === String(deptId)
+    );
+    const newCourseId = deptCourses[0]?._id || (courses[0]?._id || '');
+    setWizardCourse(newCourseId);
+
+    const courseSubjects = subjects.filter(
+      (s) => String(s.course?._id || s.course) === String(newCourseId)
+    );
+    setWizardSubject(courseSubjects[0]?._id || (subjects[0]?._id || ''));
+
+    const classStudents = students.filter(
+      (st) =>
+        (!deptId || String(st.department?._id || st.department) === String(deptId)) &&
+        (!newCourseId || String(st.course?._id || st.course) === String(newCourseId))
+    );
+    setWizardStudent(classStudents[0]?._id || '');
+  };
+
+  // Step 2: Class/Course change in Wizard
+  const handleWizardCourseChange = (courseId) => {
+    setWizardCourse(courseId);
+    const courseSubjects = subjects.filter(
+      (s) => String(s.course?._id || s.course) === String(courseId)
+    );
+    setWizardSubject(courseSubjects[0]?._id || (subjects[0]?._id || ''));
+
+    const classStudents = students.filter(
+      (st) =>
+        (!wizardDept || String(st.department?._id || st.department) === String(wizardDept)) &&
+        (!courseId || String(st.course?._id || st.course) === String(courseId))
+    );
+    setWizardStudent(classStudents[0]?._id || '');
+  };
+
+  // Step 4: Submit single mark entry from wizard
+  const handleWizardSubmit = async (e) => {
+    e?.preventDefault();
+    if (!wizardStudent) {
+      warning('Please select a student.');
+      return;
+    }
+    if (!wizardSubject) {
+      warning('Please select a subject unit.');
       return;
     }
 
+    setWizardSaving(true);
+    try {
+      const payload = {
+        studentId: wizardStudent,
+        subjectId: wizardSubject,
+        semester: wizardSemester,
+        internalMark: wizardInternal,
+        externalMark: wizardExternal,
+      };
+
+      const res = await api.post('/marks', payload);
+      if (res.data.success) {
+        success('Marks saved & university grade computed successfully!');
+        fetchData();
+        if (isEntryOpen) setIsEntryOpen(false);
+      }
+    } catch (err) {
+      error(err.response?.data?.message || 'Error saving marks.');
+    } finally {
+      setWizardSaving(false);
+    }
+  };
+
+  // Batch Class Mark Entry State handlers
+  const handleBatchDeptChange = (deptId) => {
+    setBatchDept(deptId);
+    const deptCourses = courses.filter(
+      (c) => String(c.department?._id || c.department) === String(deptId)
+    );
+    const newCourseId = deptCourses[0]?._id || (courses[0]?._id || '');
+    setBatchCourse(newCourseId);
+
+    const courseSubjects = subjects.filter(
+      (s) => String(s.course?._id || s.course) === String(newCourseId)
+    );
+    setBatchSubject(courseSubjects[0]?._id || (subjects[0]?._id || ''));
+  };
+
+  const handleBatchCourseChange = (courseId) => {
+    setBatchCourse(courseId);
+    const courseSubjects = subjects.filter(
+      (s) => String(s.course?._id || s.course) === String(courseId)
+    );
+    if (courseSubjects.length > 0) {
+      setBatchSubject(courseSubjects[0]._id);
+    }
+  };
+
+  const loadBatchClassSheet = async () => {
+    if (!batchDept || !batchCourse) return;
+
     setBatchLoading(true);
     try {
-      const stuParams = { limit: 100 };
+      const stuParams = { limit: 150 };
       if (batchDept && batchDept !== 'All') stuParams.department = batchDept;
       if (batchCourse && batchCourse !== 'All') stuParams.course = batchCourse;
 
       const [studentsRes, existingMarksRes] = await Promise.all([
         api.get('/students', { params: stuParams }),
-        api.get('/marks', {
-          params: {
-            subject: batchSubject,
-            semester: batchSemester,
-            limit: 200,
-          },
-        }),
+        batchSubject
+          ? api.get('/marks', {
+              params: {
+                subject: batchSubject,
+                semester: batchSemester,
+                limit: 200,
+              },
+            })
+          : Promise.resolve({ data: { success: true, data: [] } }),
       ]);
 
       const classStudents = studentsRes.data.data || [];
-      const existingMarks = existingMarksRes.data.data || [];
+      const existingMarks = existingMarksRes.data?.data || [];
       const markMap = {};
       existingMarks.forEach((m) => {
         const sId = m.student?._id || m.student;
@@ -217,17 +339,18 @@ export default function MarksPage() {
       });
 
       setBatchRows(initialRows);
-      if (initialRows.length === 0) {
-        warning('No enrolled students found matching the selected cohort criteria.');
-      } else {
-        success(`Loaded ${initialRows.length} students for class marks entry.`);
-      }
     } catch (err) {
-      error('Error loading class marks sheet.');
+      console.error('Error loading class marks sheet:', err);
     } finally {
       setBatchLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'batch' && batchDept && batchCourse) {
+      loadBatchClassSheet();
+    }
+  }, [batchDept, batchCourse, batchSemester, batchSubject, activeTab]);
 
   const handleBatchMarkChange = (index, field, value) => {
     const val = Number(value);
@@ -238,7 +361,7 @@ export default function MarksPage() {
 
   const handleSaveBatchMarks = async () => {
     if (!batchSubject || batchRows.length === 0) {
-      warning('No marks to save.');
+      warning('Please ensure a subject is selected and students are listed.');
       return;
     }
 
@@ -256,7 +379,7 @@ export default function MarksPage() {
 
       const res = await api.post('/marks/batch', payload);
       if (res.data.success) {
-        success(`Successfully saved & computed marks for ${batchRows.length} students!`);
+        success(`Successfully saved & computed grades for ${batchRows.length} students!`);
         fetchData();
       }
     } catch (err) {
@@ -268,53 +391,26 @@ export default function MarksPage() {
 
   const handleOpenEntry = () => {
     setEditTarget(null);
-    setFormData({
-      studentId: students[0]?._id || '',
-      subjectId: subjects[0]?._id || '',
-      semester: 'Semester 1',
-      internalMark: 22,
-      externalMark: 65,
-    });
     setIsEntryOpen(true);
   };
 
   const handleOpenEdit = (markRow) => {
     setEditTarget(markRow);
-    setFormData({
-      studentId: markRow.student?._id || markRow.student,
-      subjectId: markRow.subject?._id || markRow.subject,
-      semester: markRow.semester || 'Semester 1',
-      internalMark: markRow.internalMark,
-      externalMark: markRow.externalMark,
-    });
+    const sDept = markRow.department?._id || markRow.department || '';
+    const sCourse = markRow.course?._id || markRow.course || '';
+    setWizardDept(sDept);
+    setWizardCourse(sCourse);
+    setWizardSemester(markRow.semester || 'Semester 1');
+    setWizardSubject(markRow.subject?._id || markRow.subject || '');
+    setWizardStudent(markRow.student?._id || markRow.student || '');
+    setWizardInternal(markRow.internalMark);
+    setWizardExternal(markRow.externalMark);
     setIsEntryOpen(true);
-  };
-
-  const handleEntrySubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.studentId || !formData.subjectId) {
-      warning('Please select a student and subject.');
-      return;
-    }
-
-    setFormLoading(true);
-    try {
-      const res = await api.post('/marks', formData);
-      if (res.data.success) {
-        success('Marks updated & university grade calculated successfully!');
-        setIsEntryOpen(false);
-        fetchData();
-      }
-    } catch (err) {
-      error(err.response?.data?.message || 'Error recording marks.');
-    } finally {
-      setFormLoading(false);
-    }
   };
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
-    setFormLoading(true);
+    setLoading(true);
     try {
       const res = await api.delete(`/marks/${deleteTarget._id}`);
       if (res.data.success) {
@@ -325,7 +421,7 @@ export default function MarksPage() {
     } catch (err) {
       error('Failed to delete mark record.');
     } finally {
-      setFormLoading(false);
+      setLoading(false);
     }
   };
 
@@ -368,6 +464,19 @@ export default function MarksPage() {
       error('Failed to export marks Excel.');
     }
   };
+
+  // Filtered Students for the selected Department & Class in Wizard
+  const wizardFilteredStudents = students.filter(
+    (st) =>
+      (!wizardDept || String(st.department?._id || st.department) === String(wizardDept)) &&
+      (!wizardCourse || String(st.course?._id || st.course) === String(wizardCourse)) &&
+      (!wizardStudentSearch ||
+        st.name?.toLowerCase().includes(wizardStudentSearch.toLowerCase()) ||
+        st.registerNumber?.toLowerCase().includes(wizardStudentSearch.toLowerCase()) ||
+        st.rollNumber?.toLowerCase().includes(wizardStudentSearch.toLowerCase()))
+  );
+
+  const selectedStudentObj = students.find((s) => String(s._id) === String(wizardStudent));
 
   const columns = [
     {
@@ -517,7 +626,7 @@ export default function MarksPage() {
   return (
     <DashboardLayout
       title="Examination & Marks Governance"
-      subtitle="Thiruvalluvar University grading, batch classroom marksheet entry & student academic transcripts"
+      subtitle="Thiruvalluvar University grading, step-by-step mark entry, & official academic transcripts"
     >
       {/* Grand Neo-Classic Examination Banner */}
       <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-[#0E1B2E] via-[#162A45] to-[#4A0E18] p-6 md:p-8 text-white shadow-2xl border-2 border-[#C5A059]/40">
@@ -531,14 +640,14 @@ export default function MarksPage() {
               Semester Grade & Result Ledger
             </h2>
             <p className="mt-1 text-xs md:text-sm text-[#E8E2D5]/90 font-sans max-w-xl">
-              Automatic validation of University internal (25) & external (75) marks with live grading standard (O, A+, A, B+, B, C, RA) and student talent correlation.
+              Step-by-step departmental student mark entry with Thiruvalluvar University grading standard (O, A+, A, B+, B, C, RA).
             </p>
           </div>
 
           {/* Quick Grading Legend */}
           <div className="p-4 rounded-2xl border border-[#C5A059]/40 bg-[#0E1B2E]/60 backdrop-blur-md text-xs space-y-1.5">
             <p className="font-classic font-bold text-[#F3E5AB] uppercase tracking-wider text-[10px]">
-              University Grading Rule:
+              University Grading Scheme:
             </p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-[#E8E2D5]">
               <div><span className="font-bold text-amber-300">O</span>: 90 - 100%</div>
@@ -581,6 +690,20 @@ export default function MarksPage() {
       {/* Navigation Tab Bar */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#E8E2D5] pb-4">
         <div className="flex items-center gap-2 p-1 rounded-2xl bg-[#F0EBE1] border border-[#C5A059]/30">
+          {canEdit && (
+            <button
+              onClick={() => setActiveTab('wizard')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                activeTab === 'wizard'
+                  ? 'bg-[#6D1B29] text-white shadow-sm font-classic'
+                  : 'text-[#5A6A80] hover:text-[#0E1B2E]'
+              }`}
+            >
+              <Layers className="h-4 w-4" />
+              <span>Step-by-Step Mark Entry</span>
+            </button>
+          )}
+
           <button
             onClick={() => setActiveTab('ledger')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
@@ -597,16 +720,15 @@ export default function MarksPage() {
             <button
               onClick={() => {
                 setActiveTab('batch');
-                if (batchRows.length === 0) loadBatchClassSheet();
               }}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
                 activeTab === 'batch'
-                  ? 'bg-[#6D1B29] text-white shadow-sm font-classic'
+                  ? 'bg-[#0E1B2E] text-[#F3E5AB] shadow-sm font-classic'
                   : 'text-[#5A6A80] hover:text-[#0E1B2E]'
               }`}
             >
               <Grid className="h-4 w-4" />
-              <span>Live Class Mark Entry</span>
+              <span>Class Spreadsheet Sheet</span>
             </button>
           )}
         </div>
@@ -636,12 +758,314 @@ export default function MarksPage() {
                 className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#0E1B2E] bg-[#C5A059] hover:bg-[#DFB96E] rounded-xl transition shadow-md font-classic"
               >
                 <Plus className="h-4 w-4 text-[#0E1B2E]" />
-                <span>Record Individual Mark</span>
+                <span>Quick Record Modal</span>
               </button>
             </>
           )}
         </div>
       </div>
+
+      {/* TAB 0: STEP-BY-STEP MARK ENTRY WIZARD (MAIN REQUESTED FLOW) */}
+      {activeTab === 'wizard' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* LEFT COLUMN: 3 STEPS (Department ➔ Class ➔ Student) */}
+            <div className="lg:col-span-7 space-y-4">
+              
+              {/* STEP 1: CHOOSE DEPARTMENT */}
+              <div className="p-5 rounded-3xl border border-[#C5A059]/40 bg-white/95 shadow-sm">
+                <div className="flex items-center gap-2.5 mb-3 border-b border-[#E8E2D5] pb-2.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#6D1B29] text-white font-mono font-bold text-xs">
+                    1
+                  </span>
+                  <h3 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">
+                    Select Department
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {departments.map((d) => {
+                    const isSelected = String(d._id) === String(wizardDept);
+                    return (
+                      <button
+                        key={d._id}
+                        type="button"
+                        onClick={() => handleWizardDeptChange(d._id)}
+                        className={`flex items-center justify-between p-3 rounded-2xl text-left border transition-all ${
+                          isSelected
+                            ? 'border-[#6D1B29] bg-[#6D1B29] text-white shadow-md'
+                            : 'border-slate-200 bg-slate-50 hover:bg-[#FAF0E6]/50 text-[#0E1B2E]'
+                        }`}
+                      >
+                        <div>
+                          <p className="font-bold text-xs">{d.name}</p>
+                          <span className={`text-[10px] font-mono font-bold ${isSelected ? 'text-amber-200' : 'text-slate-500'}`}>
+                            Code: {d.code}
+                          </span>
+                        </div>
+                        {isSelected && <Check className="h-4 w-4 text-amber-300" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* STEP 2: CHOOSE CLASS / DEGREE COURSE */}
+              <div className="p-5 rounded-3xl border border-[#C5A059]/40 bg-white/95 shadow-sm">
+                <div className="flex items-center gap-2.5 mb-3 border-b border-[#E8E2D5] pb-2.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#6D1B29] text-white font-mono font-bold text-xs">
+                    2
+                  </span>
+                  <h3 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">
+                    Select Class / Degree Course
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {courses
+                    .filter((c) => !wizardDept || String(c.department?._id || c.department) === String(wizardDept))
+                    .map((c) => {
+                      const isSelected = String(c._id) === String(wizardCourse);
+                      return (
+                        <button
+                          key={c._id}
+                          type="button"
+                          onClick={() => handleWizardCourseChange(c._id)}
+                          className={`flex items-center justify-between p-3 rounded-2xl text-left border transition-all ${
+                            isSelected
+                              ? 'border-[#0E1B2E] bg-[#0E1B2E] text-[#F3E5AB] shadow-md'
+                              : 'border-slate-200 bg-slate-50 hover:bg-[#FAF0E6]/50 text-[#0E1B2E]'
+                          }`}
+                        >
+                          <div>
+                            <p className="font-bold text-xs">{c.courseName}</p>
+                            <span className={`text-[10px] font-mono font-bold ${isSelected ? 'text-[#C5A059]' : 'text-slate-500'}`}>
+                              {c.courseCode}
+                            </span>
+                          </div>
+                          {isSelected && <Check className="h-4 w-4 text-[#C5A059]" />}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* STEP 3: CHOOSE STUDENT NAME */}
+              <div className="p-5 rounded-3xl border border-[#C5A059]/40 bg-white/95 shadow-sm">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 border-b border-[#E8E2D5] pb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#6D1B29] text-white font-mono font-bold text-xs">
+                      3
+                    </span>
+                    <h3 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">
+                      Select Student ({wizardFilteredStudents.length} Scholars)
+                    </h3>
+                  </div>
+
+                  {/* Student Search */}
+                  <div className="relative w-full sm:w-56">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search student name/reg..."
+                      value={wizardStudentSearch}
+                      onChange={(e) => setWizardStudentSearch(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 py-1.5 text-xs text-[#0E1B2E] focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                  {wizardFilteredStudents.length > 0 ? (
+                    wizardFilteredStudents.map((st) => {
+                      const isSelected = String(st._id) === String(wizardStudent);
+                      return (
+                        <button
+                          key={st._id}
+                          type="button"
+                          onClick={() => setWizardStudent(st._id)}
+                          className={`w-full flex items-center justify-between p-3 rounded-2xl text-left border transition-all ${
+                            isSelected
+                              ? 'border-[#6D1B29] bg-[#FAF0E6] shadow-sm'
+                              : 'border-slate-200 bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs ${
+                                isSelected ? 'bg-[#6D1B29] text-white' : 'bg-slate-100 text-[#0E1B2E]'
+                              }`}
+                            >
+                              {st.name?.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="font-bold text-xs text-[#0E1B2E]">{st.name}</p>
+                              <p className="text-[10px] text-slate-500 font-mono">
+                                Reg: <span className="font-bold text-[#6D1B29]">{st.registerNumber}</span> • Roll: {st.rollNumber}
+                              </p>
+                            </div>
+                          </div>
+
+                          {isSelected && (
+                            <span className="flex items-center gap-1 text-xs font-bold text-[#6D1B29] bg-[#C5A059]/20 px-2.5 py-1 rounded-full border border-[#C5A059]/40">
+                              <Check className="h-3.5 w-3.5" /> Selected
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-slate-400 italic py-6 text-center">
+                      No enrolled students found for the selected Department & Class.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* RIGHT COLUMN: STEP 4: ENTER SUBJECT & MARKS */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="p-6 rounded-3xl border-2 border-[#C5A059] bg-white/95 shadow-lg sticky top-24">
+                <div className="flex items-center gap-2.5 mb-4 border-b border-[#E8E2D5] pb-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C5A059] text-[#0E1B2E] font-mono font-black text-xs">
+                    4
+                  </span>
+                  <h3 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">
+                    Enter Subject Marks
+                  </h3>
+                </div>
+
+                {/* Selected Student Banner */}
+                {selectedStudentObj ? (
+                  <div className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-[#0E1B2E] to-[#4A0E18] text-white shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-[#C5A059] uppercase">Candidate Selected</span>
+                        <h4 className="font-bold text-sm text-white">{selectedStudentObj.name}</h4>
+                        <p className="text-[11px] font-mono text-[#F3E5AB]">
+                          {selectedStudentObj.registerNumber} • Roll: {selectedStudentObj.rollNumber}
+                        </p>
+                      </div>
+                      <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center border border-[#C5A059]/40 text-[#C5A059] font-bold">
+                        {selectedStudentObj.name?.charAt(0)}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-4 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                    ⚠️ Please select a student from Step 3 on the left.
+                  </div>
+                )}
+
+                <form onSubmit={handleWizardSubmit} className="space-y-4 text-xs font-sans">
+                  {/* Semester & Subject Selection */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">
+                      Semester
+                    </label>
+                    <select
+                      value={wizardSemester}
+                      onChange={(e) => setWizardSemester(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 font-medium text-[#0E1B2E]"
+                    >
+                      {['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6'].map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">
+                      Subject Unit *
+                    </label>
+                    <select
+                      required
+                      value={wizardSubject}
+                      onChange={(e) => setWizardSubject(e.target.value)}
+                      className="w-full rounded-xl border border-[#C5A059] bg-[#FAF0E6]/30 p-2.5 font-bold text-[#6D1B29] focus:outline-hidden"
+                    >
+                      <option value="">-- Choose Subject Unit --</option>
+                      {subjects
+                        .filter((s) => !wizardCourse || String(s.course?._id || s.course) === String(wizardCourse))
+                        .map((sub) => (
+                          <option key={sub._id} value={sub._id}>
+                            {sub.subjectCode} - {sub.subjectName} ({sub.semester})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Mark Inputs */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">
+                        Internal (Max 25) *
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={25}
+                        required
+                        value={wizardInternal}
+                        onChange={(e) => setWizardInternal(Number(e.target.value))}
+                        className="w-full rounded-xl border border-slate-300 p-2.5 font-mono font-bold text-center text-sm text-[#0E1B2E] bg-white shadow-2xs focus:border-[#6D1B29]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">
+                        External (Max 75) *
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={75}
+                        required
+                        value={wizardExternal}
+                        onChange={(e) => setWizardExternal(Number(e.target.value))}
+                        className="w-full rounded-xl border border-slate-300 p-2.5 font-mono font-bold text-center text-sm text-[#0E1B2E] bg-white shadow-2xs focus:border-[#6D1B29]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Computed Live Result Card */}
+                  {(() => {
+                    const preview = calculateGradeInfo(wizardInternal, wizardExternal);
+                    return (
+                      <div className="p-4 rounded-2xl bg-[#FAF0E6] border border-[#C5A059]/40 flex items-center justify-between text-xs shadow-2xs">
+                        <div>
+                          <span className="text-[#6D1B29] font-bold uppercase text-[10px]">Computed Total & Grade:</span>
+                          <p className="text-lg font-black font-mono text-[#0E1B2E] mt-0.5">
+                            {preview.total} / 100 <span className="text-xs font-sans font-bold text-[#6D1B29]">({preview.grade} Grade)</span>
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[#6D1B29] font-bold uppercase text-[10px]">Result:</span>
+                          <p className={`font-black text-sm ${preview.isPassed ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            {preview.resultStatus === 'Pass' ? 'PASSED' : 'RE-APPEAR (RA)'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Save Button */}
+                  <button
+                    type="submit"
+                    disabled={wizardSaving || !wizardStudent || !wizardSubject}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-2xl font-classic font-bold text-xs text-white bg-[#6D1B29] hover:bg-[#8C2234] transition shadow-md disabled:opacity-50"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>{wizardSaving ? 'Saving...' : 'Save & Record Mark'}</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: OFFICIAL GRADE LEDGER */}
       {activeTab === 'ledger' && (
@@ -659,8 +1083,12 @@ export default function MarksPage() {
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={deptFilter}
-                onChange={(e) => setDeptFilter(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-semibold text-[#0E1B2E] focus:outline-hidden"
+                onChange={(e) => {
+                  setDeptFilter(e.target.value);
+                  setCourseFilter('All');
+                  setCurrentPage(1);
+                }}
+                className="rounded-xl border border-[#C5A059]/40 bg-white py-2 px-3 text-xs font-semibold text-[#0E1B2E] focus:outline-hidden"
               >
                 <option value="All">All Departments</option>
                 {departments.map((d) => (
@@ -671,8 +1099,29 @@ export default function MarksPage() {
               </select>
 
               <select
+                value={courseFilter}
+                onChange={(e) => {
+                  setCourseFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="rounded-xl border border-[#C5A059]/40 bg-white py-2 px-3 text-xs font-semibold text-[#0E1B2E] focus:outline-hidden"
+              >
+                <option value="All">All Classes / Courses</option>
+                {courses
+                  .filter((c) => deptFilter === 'All' || String(c.department?._id || c.department) === String(deptFilter))
+                  .map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.courseCode} - {c.courseName}
+                    </option>
+                  ))}
+              </select>
+
+              <select
                 value={semesterFilter}
-                onChange={(e) => setSemesterFilter(e.target.value)}
+                onChange={(e) => {
+                  setSemesterFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-semibold text-[#0E1B2E] focus:outline-hidden"
               >
                 <option value="All">All Semesters</option>
@@ -683,7 +1132,10 @@ export default function MarksPage() {
 
               <select
                 value={resultFilter}
-                onChange={(e) => setResultFilter(e.target.value)}
+                onChange={(e) => {
+                  setResultFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="rounded-xl border border-slate-200 bg-white py-2 px-3 text-xs font-semibold text-[#0E1B2E] focus:outline-hidden"
               >
                 <option value="All">All Results</option>
@@ -703,7 +1155,7 @@ export default function MarksPage() {
             <div className="flex items-center justify-between border-b border-[#E8E2D5] pb-3 mb-4">
               <div>
                 <h3 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">Select Course & Subject for Classroom Mark Sheet</h3>
-                <p className="text-xs text-[#64748B]">Fill marks for all students in one interactive grid</p>
+                <p className="text-xs text-[#64748B]">Students in the selected department & class appear automatically</p>
               </div>
               <button
                 onClick={loadBatchClassSheet}
@@ -711,7 +1163,7 @@ export default function MarksPage() {
                 className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#0E1B2E] hover:bg-[#162A45] rounded-xl transition shadow-xs disabled:opacity-60 font-classic"
               >
                 <RefreshCw className={`h-4 w-4 ${batchLoading ? 'animate-spin' : ''}`} />
-                <span>Load Class Roster</span>
+                <span>Refresh Roster</span>
               </button>
             </div>
 
@@ -720,7 +1172,7 @@ export default function MarksPage() {
                 <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">Department</label>
                 <select
                   value={batchDept}
-                  onChange={(e) => setBatchDept(e.target.value)}
+                  onChange={(e) => handleBatchDeptChange(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-[#0E1B2E] font-medium"
                 >
                   {departments.map((d) => (
@@ -730,15 +1182,17 @@ export default function MarksPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">Course Stream</label>
+                <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">Class / Degree Course</label>
                 <select
                   value={batchCourse}
-                  onChange={(e) => setBatchCourse(e.target.value)}
+                  onChange={(e) => handleBatchCourseChange(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-[#0E1B2E] font-medium"
                 >
-                  {courses.map((c) => (
-                    <option key={c._id} value={c._id}>{c.courseCode} - {c.courseName}</option>
-                  ))}
+                  {courses
+                    .filter((c) => !batchDept || String(c.department?._id || c.department) === String(batchDept))
+                    .map((c) => (
+                      <option key={c._id} value={c._id}>{c.courseCode} - {c.courseName}</option>
+                    ))}
                 </select>
               </div>
 
@@ -762,11 +1216,13 @@ export default function MarksPage() {
                   onChange={(e) => setBatchSubject(e.target.value)}
                   className="w-full rounded-xl border border-[#C5A059] bg-[#FAF0E6]/30 p-2.5 text-xs font-bold text-[#6D1B29]"
                 >
-                  {subjects.map((sub) => (
-                    <option key={sub._id} value={sub._id}>
-                      {sub.subjectCode} - {sub.subjectName}
-                    </option>
-                  ))}
+                  {subjects
+                    .filter((s) => !batchCourse || String(s.course?._id || s.course) === String(batchCourse))
+                    .map((sub) => (
+                      <option key={sub._id} value={sub._id}>
+                        {sub.subjectCode} - {sub.subjectName}
+                      </option>
+                    ))}
                 </select>
               </div>
             </div>
@@ -882,7 +1338,7 @@ export default function MarksPage() {
                   ) : (
                     <tr>
                       <td colSpan={8} className="px-5 py-12 text-center text-slate-400">
-                        Select a Subject and click "Load Class Roster" to start entering marks.
+                        No students found for this Department and Course. Select another department/class to view students.
                       </td>
                     </tr>
                   )}
@@ -1051,63 +1507,122 @@ export default function MarksPage() {
         entityName="Marks Records"
       />
 
-      {/* INDIVIDUAL ENTER / EDIT MARKS MODAL */}
+      {/* STEP-BY-STEP CASCADING INDIVIDUAL ENTER / EDIT MARKS MODAL */}
       <Modal
         isOpen={isEntryOpen}
         onClose={() => setIsEntryOpen(false)}
         title={editTarget ? "Edit Semester Examination Marks" : "Record Semester Examination Marks"}
-        subtitle="Automatic calculation of total, university grade, and result standard"
+        subtitle="Department ➔ Class / Course ➔ Subject ➔ Student Name ➔ Marks"
+        maxWidth="max-w-2xl"
       >
-        <form onSubmit={handleEntrySubmit} className="space-y-4 font-sans">
-          <div>
-            <label className="block text-xs font-bold text-[#0E1B2E] mb-1">Select Student *</label>
+        <form onSubmit={handleWizardSubmit} className="space-y-4 font-sans text-xs">
+          {/* Step 1 & 2: Department & Class/Course Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-[#FAF0E6]/50 border border-[#C5A059]/30">
+            <div>
+              <label className="block text-[11px] font-bold text-[#6D1B29] uppercase mb-1">
+                1. Select Department *
+              </label>
+              <select
+                required
+                disabled={!!editTarget}
+                value={wizardDept}
+                onChange={(e) => handleWizardDeptChange(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-[#0E1B2E] font-medium focus:border-[#6D1B29] focus:outline-hidden shadow-2xs"
+              >
+                <option value="">-- Choose Department --</option>
+                {departments.map((d) => (
+                  <option key={d._id} value={d._id}>
+                    {d.code} - {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-[#6D1B29] uppercase mb-1">
+                2. Select Class / Degree Course *
+              </label>
+              <select
+                required
+                disabled={!!editTarget}
+                value={wizardCourse}
+                onChange={(e) => handleWizardCourseChange(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-[#0E1B2E] font-medium focus:border-[#6D1B29] focus:outline-hidden shadow-2xs"
+              >
+                <option value="">-- Choose Class / Course --</option>
+                {courses
+                  .filter((c) => !wizardDept || String(c.department?._id || c.department) === String(wizardDept))
+                  .map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.courseCode} - {c.courseName}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Step 3: Semester & Subject Unit Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <div>
+              <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">
+                3. Semester
+              </label>
+              <select
+                value={wizardSemester}
+                onChange={(e) => setWizardSemester(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-[#0E1B2E] font-medium focus:border-[#6D1B29] focus:outline-hidden shadow-2xs"
+              >
+                {['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6'].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">
+                4. Select Subject Unit *
+              </label>
+              <select
+                required
+                disabled={!!editTarget}
+                value={wizardSubject}
+                onChange={(e) => setWizardSubject(e.target.value)}
+                className="w-full rounded-xl border border-[#C5A059] bg-[#FAF0E6]/30 p-2.5 text-xs font-bold text-[#6D1B29] focus:border-[#6D1B29] focus:outline-hidden shadow-2xs"
+              >
+                <option value="">-- Choose Subject --</option>
+                {subjects
+                  .filter((sub) => !wizardCourse || String(sub.course?._id || sub.course) === String(wizardCourse))
+                  .map((sub) => (
+                    <option key={sub._id} value={sub._id}>
+                      {sub.subjectCode} - {sub.subjectName} ({sub.semester})
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Step 4: Student Selection from that specific class */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+            <label className="block text-[11px] font-bold text-[#0E1B2E] uppercase mb-1">
+              5. Select Student from this Class *
+            </label>
             <select
               required
               disabled={!!editTarget}
-              value={formData.studentId}
-              onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-[#0E1B2E] font-medium focus:border-[#6D1B29] focus:outline-hidden"
+              value={wizardStudent}
+              onChange={(e) => setWizardStudent(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs font-bold text-[#0E1B2E] focus:border-[#6D1B29] focus:outline-hidden shadow-2xs"
             >
-              <option value="">-- Choose Student --</option>
-              {students.map((s) => (
+              <option value="">-- Choose Student from Selected Class --</option>
+              {wizardFilteredStudents.map((s) => (
                 <option key={s._id} value={s._id}>
-                  {s.registerNumber} - {s.name} ({s.department?.name})
+                  {s.registerNumber} - {s.name} ({s.rollNumber ? `Roll: ${s.rollNumber}` : ''})
                 </option>
               ))}
             </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-[#0E1B2E] mb-1">Select Subject *</label>
-            <select
-              required
-              disabled={!!editTarget}
-              value={formData.subjectId}
-              onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-[#0E1B2E] font-medium focus:border-[#6D1B29] focus:outline-hidden"
-            >
-              <option value="">-- Choose Subject --</option>
-              {subjects.map((sub) => (
-                <option key={sub._id} value={sub._id}>
-                  {sub.subjectCode} - {sub.subjectName} ({sub.semester})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-[#0E1B2E] mb-1">Semester</label>
-            <select
-              value={formData.semester}
-              onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-[#0E1B2E] font-medium"
-            >
-              {['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6'].map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-
+          {/* Step 5: Mark Inputs */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-[#0E1B2E] mb-1">
@@ -1118,11 +1633,9 @@ export default function MarksPage() {
                 min={0}
                 max={25}
                 required
-                value={formData.internalMark}
-                onChange={(e) =>
-                  setFormData({ ...formData, internalMark: Number(e.target.value) })
-                }
-                className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-mono font-bold text-[#0E1B2E] focus:border-[#6D1B29] focus:outline-hidden"
+                value={wizardInternal}
+                onChange={(e) => setWizardInternal(Number(e.target.value))}
+                className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-mono font-bold text-[#0E1B2E] focus:border-[#6D1B29] focus:outline-hidden bg-white shadow-2xs"
               />
             </div>
             <div>
@@ -1134,24 +1647,22 @@ export default function MarksPage() {
                 min={0}
                 max={75}
                 required
-                value={formData.externalMark}
-                onChange={(e) =>
-                  setFormData({ ...formData, externalMark: Number(e.target.value) })
-                }
-                className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-mono font-bold text-[#0E1B2E] focus:border-[#6D1B29] focus:outline-hidden"
+                value={wizardExternal}
+                onChange={(e) => setWizardExternal(Number(e.target.value))}
+                className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-mono font-bold text-[#0E1B2E] focus:border-[#6D1B29] focus:outline-hidden bg-white shadow-2xs"
               />
             </div>
           </div>
 
           {/* Live Computed Grade Card */}
           {(() => {
-            const preview = calculateGradeInfo(formData.internalMark, formData.externalMark);
+            const preview = calculateGradeInfo(wizardInternal, wizardExternal);
             return (
-              <div className="p-4 rounded-2xl bg-[#FAF0E6] border border-[#C5A059]/40 flex items-center justify-between text-xs">
+              <div className="p-4 rounded-2xl bg-[#FAF0E6] border border-[#C5A059]/40 flex items-center justify-between text-xs shadow-2xs">
                 <div>
                   <span className="text-[#6D1B29] font-bold uppercase text-[10px]">Computed Total & Grade:</span>
                   <p className="text-lg font-black font-mono text-[#0E1B2E] mt-0.5">
-                    {preview.total} / 100 <span className="text-xs font-sans text-slate-500">({preview.grade} Grade)</span>
+                    {preview.total} / 100 <span className="text-xs font-sans font-bold text-[#6D1B29]">({preview.grade} Grade)</span>
                   </p>
                 </div>
                 <div className="text-right">
@@ -1174,10 +1685,10 @@ export default function MarksPage() {
             </button>
             <button
               type="submit"
-              disabled={formLoading}
+              disabled={wizardSaving || !wizardStudent || !wizardSubject}
               className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-[#6D1B29] hover:bg-[#8C2234] rounded-xl transition shadow-sm disabled:opacity-60 font-classic"
             >
-              {formLoading && <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+              {wizardSaving && <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />}
               <span>{editTarget ? 'Update Mark & Recalculate' : 'Save Mark & Compute Grade'}</span>
             </button>
           </div>
@@ -1192,7 +1703,7 @@ export default function MarksPage() {
         title="Delete Mark Record"
         message={`Are you sure you want to delete the mark record for ${deleteTarget?.studentName} in ${deleteTarget?.subjectCode}?`}
         confirmText="Yes, Delete"
-        loading={formLoading}
+        loading={loading}
       />
     </DashboardLayout>
   );

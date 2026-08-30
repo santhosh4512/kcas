@@ -287,6 +287,147 @@ exports.importMarks = async (req, res, next) => {
 };
 
 /**
+  * @desc    Batch Save marks for an entire cohort / subject
+  * @route   POST /api/marks/batch
+  * @access  Private/Faculty/Admin
+  */
+exports.batchSaveMarks = async (req, res, next) => {
+  try {
+    const { subjectId, semester, records } = req.body;
+    if (!subjectId || !records || !Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid payload or empty records.' });
+    }
+
+    const subject = await Subject.findById(subjectId).populate('department').populate('course');
+    if (!subject) {
+      return res.status(404).json({ success: false, message: 'Subject not found.' });
+    }
+
+    const processed = [];
+    const studentIdsToUpdate = new Set();
+
+    for (const item of records) {
+      const { studentId, internalMark, externalMark } = item;
+      const student = await Student.findById(studentId);
+      if (!student) continue;
+
+      const internal = Math.min(25, Math.max(0, Number(internalMark) || 0));
+      const external = Math.min(75, Math.max(0, Number(externalMark) || 0));
+
+      let mark = await Mark.findOne({
+        student: student._id,
+        subject: subject._id,
+        semester: semester || subject.semester,
+      });
+
+      if (mark) {
+        mark.internalMark = internal;
+        mark.externalMark = external;
+        mark.enteredBy = req.user._id;
+        await mark.save();
+      } else {
+        mark = await Mark.create({
+          student: student._id,
+          registerNumber: student.registerNumber,
+          studentName: student.name,
+          department: student.department,
+          course: student.course,
+          semester: semester || subject.semester,
+          subject: subject._id,
+          subjectCode: subject.subjectCode,
+          subjectName: subject.subjectName,
+          internalMark: internal,
+          externalMark: external,
+          enteredBy: req.user._id,
+        });
+      }
+      processed.push(mark);
+      studentIdsToUpdate.add(student._id.toString());
+    }
+
+    // Auto-update student's Studies talent category based on new academic average
+    for (const sId of studentIdsToUpdate) {
+      const allStudentMarks = await Mark.find({ student: sId });
+      if (allStudentMarks.length > 0) {
+        const avg = Math.round(
+          allStudentMarks.reduce((acc, m) => acc + (m.totalMark || 0), 0) / allStudentMarks.length
+        );
+        const student = await Student.findById(sId);
+        let talentDoc = await TalentScore.findOne({ student: sId });
+        if (talentDoc && student) {
+          const scores = { ...talentDoc.categoryScores.toObject(), studies: avg };
+          const recalculated = talentService.calculateTalentScores(scores, student.name);
+          Object.assign(talentDoc, recalculated);
+          await talentDoc.save();
+        }
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully saved & calculated grades for ${processed.length} students.`,
+      count: processed.length,
+      data: processed,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get detailed marks transcript for a specific student
+ * @route   GET /api/marks/student/:studentId
+ * @access  Private
+ */
+exports.getStudentMarks = async (req, res, next) => {
+  try {
+    const student = await Student.findById(req.params.studentId)
+      .populate('department', 'name code')
+      .populate('course', 'courseName courseCode');
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    const marks = await Mark.find({ student: student._id })
+      .populate('subject', 'subjectName subjectCode credits semester')
+      .sort({ semester: 1, subjectCode: 1 });
+
+    const totalEvaluations = marks.length;
+    const passedEvaluations = marks.filter((m) => m.resultStatus === 'Pass').length;
+    const failedEvaluations = marks.filter((m) => m.resultStatus === 'Fail').length;
+    const totalMarksSum = marks.reduce((acc, m) => acc + (m.totalMark || 0), 0);
+    const overallPercentage = totalEvaluations > 0 ? Math.round((totalMarksSum / totalEvaluations) * 10) / 10 : 0;
+
+    // Group by semester
+    const semesterMap = {};
+    marks.forEach((m) => {
+      const sem = m.semester || 'Semester 1';
+      if (!semesterMap[sem]) {
+        semesterMap[sem] = [];
+      }
+      semesterMap[sem].push(m);
+    });
+
+    res.status(200).json({
+      success: true,
+      student,
+      summary: {
+        totalEvaluations,
+        passedEvaluations,
+        failedEvaluations,
+        overallPercentage,
+        resultStatus: failedEvaluations === 0 && totalEvaluations > 0 ? 'First Class / Exemplary' : failedEvaluations > 0 ? 'Arrear(s) Pending' : 'In Progress',
+      },
+      semesterMarks: semesterMap,
+      allMarks: marks,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Export Marks to Excel
  * @route   GET /api/marks/export
  * @access  Private
@@ -335,3 +476,4 @@ exports.exportMarks = async (req, res, next) => {
     next(error);
   }
 };
+
