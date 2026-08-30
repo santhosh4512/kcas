@@ -17,12 +17,11 @@ import {
   Award,
   Sparkles,
   TrendingUp,
-  AlertTriangle,
   ArrowUpRight,
-  PlusCircle,
   FileSpreadsheet,
   CheckCircle2,
-  Clock,
+  Zap,
+  ScrollText,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -32,13 +31,13 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   PieChart,
   Pie,
   Cell,
+  Legend,
 } from 'recharts';
 
-const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
+const COLORS = ['#6D1B29', '#C5A059', '#162A45', '#10b981', '#7c3aed', '#b91c1c', '#0891b2'];
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -64,139 +63,161 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout
-      title="Institutional Dashboard"
-      subtitle="Live database metrics, department analytics, and student talent overview"
+      title="Institutional Governance Dashboard"
+      subtitle="Kamban College of Arts & Science — Academic Records & Talent Intelligence Gateway"
     >
-      {/* Welcome Banner */}
-      <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 p-6 md:p-8 text-white shadow-xl">
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-300 mb-3">
-            <Sparkles className="h-3.5 w-3.5" />
-            Kamban College Talent Intelligence Engine Active
+      {/* Grand Neo-Classic Executive Hero Banner */}
+      <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-[#0E1B2E] via-[#162A45] to-[#4A0E18] p-6 md:p-10 text-white shadow-2xl border-2 border-[#C5A059]/40">
+        {/* Ambient Radial Lights */}
+        <div className="absolute top-0 right-0 h-96 w-96 rounded-full bg-[#C5A059]/20 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-20 left-40 h-80 w-80 rounded-full bg-[#6D1B29]/30 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 max-w-3xl">
+          {/* Institutional Seal Badge */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#C5A059]/60 bg-[#FAF0E6]/10 px-4 py-1.5 text-xs font-classic font-bold tracking-widest text-[#F3E5AB] mb-4 backdrop-blur-md shadow-sm">
+            <Sparkles className="h-3.5 w-3.5 text-[#C5A059] animate-spin" style={{ animationDuration: '6s' }} />
+            <span>EXCELLENCE IN WOMEN'S HIGHER EDUCATION</span>
           </div>
-          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-            Welcome back, {user?.name || 'Administrator'}
+
+          <h2 className="font-classic text-2xl md:text-4xl font-black tracking-wide text-white leading-tight uppercase">
+            Welcome, {user?.name || 'Administrator'}
           </h2>
-          <p className="mt-2 text-xs md:text-sm text-slate-300 leading-relaxed">
-            Manage academic records, track real-time attendance, analyze university examination grades,
-            and discover the innate potential of every student across all departments.
+          
+          <p className="mt-2 text-xs md:text-sm text-[#E8E2D5]/90 leading-relaxed font-sans max-w-2xl">
+            Institutional overview for Kamban College. Track multi-department student strength, monitor verified classroom attendance, review university examination results, and cultivate innate student talents.
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          {/* Neo-Classic Action Capsules */}
+          <div className="mt-7 flex flex-wrap items-center gap-3 font-sans">
             <Link
               href="/talent"
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 transition"
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#C5A059] via-[#DFB96E] to-[#C5A059] px-5 py-2.5 text-xs font-black text-[#0E1B2E] shadow-lg shadow-[#C5A059]/30 hover:scale-102 transition-all border border-[#F3E5AB]"
             >
-              <Sparkles className="h-4 w-4" />
-              Explore Talent Intelligence
+              <Sparkles className="h-4 w-4 text-[#0E1B2E]" />
+              <span>Talent Intelligence</span>
             </Link>
+
             <Link
               href="/attendance"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition backdrop-blur-xs"
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#C5A059]/40 bg-[#0E1B2E]/60 px-4 py-2.5 text-xs font-bold text-[#F3E5AB] hover:bg-[#FAF0E6]/15 hover:border-[#C5A059] transition-all backdrop-blur-md"
             >
-              <CalendarCheck className="h-4 w-4" />
-              Mark Attendance
+              <CalendarCheck className="h-4 w-4 text-[#C5A059]" />
+              <span>Mark Attendance</span>
             </Link>
+
             <Link
               href="/students"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition backdrop-blur-xs"
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#C5A059]/40 bg-[#0E1B2E]/60 px-4 py-2.5 text-xs font-bold text-[#F3E5AB] hover:bg-[#FAF0E6]/15 hover:border-[#C5A059] transition-all backdrop-blur-md"
             >
-              <GraduationCap className="h-4 w-4" />
-              Student Directory
+              <GraduationCap className="h-4 w-4 text-emerald-400" />
+              <span>Student Directory</span>
+            </Link>
+
+            <Link
+              href="/marks"
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#C5A059]/40 bg-[#0E1B2E]/60 px-4 py-2.5 text-xs font-bold text-[#F3E5AB] hover:bg-[#FAF0E6]/15 hover:border-[#C5A059] transition-all backdrop-blur-md"
+            >
+              <Award className="h-4 w-4 text-amber-300" />
+              <span>Semester Grades</span>
             </Link>
           </div>
         </div>
-
-        {/* Ambient glow decoration */}
-        <div className="absolute -right-10 -bottom-10 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl pointer-events-none" />
       </div>
 
-      {/* 8 Live Database KPI Cards */}
+      {/* 8 Classic & Modern Bento KPI Cards */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Departments"
           value={stats?.kpis?.totalDepartments}
-          subtitle="Active academic streams"
+          subtitle="Academic streams"
           icon={Building2}
-          color="blue"
+          color="maroon"
         />
         <StatCard
-          title="Total Students"
+          title="Student Strength"
           value={stats?.kpis?.totalStudents}
-          subtitle="Enrolled & registered"
+          subtitle="Active enrolled scholars"
           icon={GraduationCap}
           color="emerald"
         />
         <StatCard
-          title="Faculty Staff"
+          title="Faculty Roster"
           value={stats?.kpis?.totalFaculty}
           subtitle="Professors & Lecturers"
           icon={Users}
-          color="indigo"
+          color="navy"
         />
         <StatCard
-          title="Talents Identified"
+          title="Talents Assessed"
           value={stats?.kpis?.studentsWithTalent}
-          subtitle="Assessed in 7 categories"
+          subtitle="7-Domain intelligence"
           icon={Sparkles}
-          color="amber"
+          color="gold"
         />
         <StatCard
-          title="Courses Offered"
+          title="Degree Programs"
           value={stats?.kpis?.totalCourses}
-          subtitle="UG & PG programs"
+          subtitle="UG & PG curriculum"
           icon={BookOpen}
           color="purple"
         />
         <StatCard
-          title="Subject Units"
+          title="Subject Modules"
           value={stats?.kpis?.totalSubjects}
-          subtitle="Curriculum subjects"
+          subtitle="Semester syllabus units"
           icon={Award}
           color="blue"
         />
         <StatCard
-          title="Average Attendance"
+          title="Attendance Rate"
           value={stats?.kpis?.averageAttendance || '92.5%'}
-          subtitle="Healthy institutional rate"
+          subtitle="Institutional consistency"
           icon={CalendarCheck}
           color="emerald"
-          trend={{ positive: true, text: 'Above 75% threshold' }}
+          trend={{ positive: true, text: 'Above 75% mandate' }}
         />
         <StatCard
-          title="Academic Score"
+          title="Academic Merit"
           value={stats?.kpis?.averageAcademicPercentage || '82.4%'}
-          subtitle="Average semester result"
+          subtitle="Aggregate examination score"
           icon={TrendingUp}
           color="rose"
         />
       </div>
 
-      {/* Dynamic Visualizations Grid */}
+      {/* Visual Analytics Bento Grid */}
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Chart 1: Talent Distribution (Main Innovation) */}
+        {/* Chart 1: Talent Distribution */}
         <ChartCard
           title="Student Talent Distribution"
-          subtitle="Dominant strengths detected across evaluated students"
+          subtitle="Dominant cognitive & expressive competencies detected across students"
           action={
             <Link
               href="/talent-analytics"
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              className="inline-flex items-center gap-1 text-xs font-bold text-[#6D1B29] hover:text-[#C5A059] transition-colors font-classic"
             >
-              Full Analytics <ArrowUpRight className="h-3.5 w-3.5" />
+              <span>Full Analytics</span>
+              <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           }
           loading={loading}
         >
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={stats?.charts?.talentDistribution || []} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="category" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} angle={-25} textAnchor="end" />
-              <YAxis tick={{ fontSize: 10, fill: '#64748b' }} allowDecimals={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e8e2d5" vertical={false} />
+              <XAxis dataKey="category" tick={{ fontSize: 10, fill: '#4a5568', fontWeight: 600 }} interval={0} angle={-25} textAnchor="end" />
+              <YAxis tick={{ fontSize: 10, fill: '#4a5568' }} allowDecimals={false} />
               <Tooltip
-                contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                contentStyle={{
+                  borderRadius: '16px',
+                  border: '1px solid #C5A059',
+                  backgroundColor: '#FFFFFF',
+                  boxShadow: '0 10px 20px -3px rgba(14, 27, 46, 0.12)',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                }}
               />
-              <Bar dataKey="count" name="Students" radius={[6, 6, 0, 0]}>
+              <Bar dataKey="count" name="Students" radius={[8, 8, 0, 0]}>
                 {(stats?.charts?.talentDistribution || []).map((_, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
@@ -207,54 +228,66 @@ export default function DashboardPage() {
 
         {/* Chart 2: Students By Department */}
         <ChartCard
-          title="Students by Department"
-          subtitle="Active student strength per department"
+          title="Department Student Capacity"
+          subtitle="Enrolled student volume per academic department"
           action={
             <Link
               href="/departments"
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              className="inline-flex items-center gap-1 text-xs font-bold text-[#6D1B29] hover:text-[#C5A059] transition-colors font-classic"
             >
-              Departments <ArrowUpRight className="h-3.5 w-3.5" />
+              <span>Departments</span>
+              <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           }
           loading={loading}
         >
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={stats?.charts?.studentsByDepartment || []} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="code" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e8e2d5" vertical={false} />
+              <XAxis dataKey="code" tick={{ fontSize: 11, fill: '#4a5568', fontWeight: 700 }} />
+              <YAxis tick={{ fontSize: 11, fill: '#4a5568' }} allowDecimals={false} />
               <Tooltip
-                contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                contentStyle={{
+                  borderRadius: '16px',
+                  border: '1px solid #C5A059',
+                  boxShadow: '0 10px 20px -3px rgba(14, 27, 46, 0.12)',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                }}
               />
-              <Bar dataKey="students" fill="#2563eb" radius={[6, 6, 0, 0]} name="Students Count" />
+              <Bar dataKey="students" fill="#6D1B29" radius={[8, 8, 0, 0]} name="Students Count" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
         {/* Chart 3: Academic Performance Breakdown */}
         <ChartCard
-          title="Academic Performance Overview"
-          subtitle="University grade classification distribution"
+          title="University Grade Classification"
+          subtitle="Cumulative evaluation distribution across grading tiers"
           loading={loading}
         >
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={stats?.charts?.academicOverview || []} layout="vertical" margin={{ top: 10, right: 20, left: 40, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} allowDecimals={false} />
-              <YAxis dataKey="tier" type="category" tick={{ fontSize: 9, fill: '#475569' }} width={90} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e8e2d5" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: '#4a5568' }} allowDecimals={false} />
+              <YAxis dataKey="tier" type="category" tick={{ fontSize: 10, fill: '#1a202c', fontWeight: 600 }} width={95} />
               <Tooltip
-                contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}
+                contentStyle={{
+                  borderRadius: '16px',
+                  border: '1px solid #C5A059',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                }}
               />
-              <Bar dataKey="count" fill="#10b981" radius={[0, 6, 6, 0]} name="Evaluations" />
+              <Bar dataKey="count" fill="#C5A059" radius={[0, 8, 8, 0]} name="Evaluations" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
         {/* Chart 4: Students by Year */}
         <ChartCard
-          title="Student Cohort by Academic Year"
-          subtitle="Enrollment distribution across batch years"
+          title="Cohort Distribution by Year"
+          subtitle="Enrolled student proportion across undergraduate years"
           loading={loading}
         >
           <ResponsiveContainer width="100%" height={280}>
@@ -263,8 +296,8 @@ export default function DashboardPage() {
                 data={stats?.charts?.studentsByYear || []}
                 cx="50%"
                 cy="50%"
-                innerRadius={60}
-                outerRadius={95}
+                innerRadius={65}
+                outerRadius={100}
                 paddingAngle={4}
                 dataKey="students"
                 nameKey="year"
@@ -282,116 +315,117 @@ export default function DashboardPage() {
         </ChartCard>
       </div>
 
-      {/* Bottom Section: Recent Activities & Quick Actions */}
+      {/* Bottom Section: Recent Audit Log & Quick Access Hub */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Recent Activity Audit Log */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+        {/* Recent Activity Audit Ledger */}
+        <div className="rounded-3xl border border-[#C5A059]/30 bg-white/95 p-6 backdrop-blur-md shadow-sm lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-[#E8E2D5] pb-4 mb-4">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Recent System Activity</h3>
-              <p className="text-xs text-slate-500">Live transaction and audit updates</p>
+              <h3 className="font-classic text-base font-black text-[#0E1B2E] tracking-wide uppercase">Institutional Transaction Ledger</h3>
+              <p className="text-xs text-[#64748B] mt-0.5 font-sans">Live audit registry & security record log</p>
             </div>
-            <Badge variant="primary" size="sm">
+            <Badge variant="royal" size="sm">
+              <Zap className="h-3 w-3 text-[#F3E5AB]" />
               Live Feed
             </Badge>
           </div>
 
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-[#F0EBE1]">
             {stats?.recentActivity?.length > 0 ? (
               stats.recentActivity.map((act) => (
-                <div key={act._id} className="flex items-start gap-3 py-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mt-0.5 flex-shrink-0">
+                <div key={act._id} className="flex items-start gap-3.5 py-3.5 hover:bg-[#FAF0E6]/40 rounded-xl px-2 transition-colors">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FAF0E6] text-[#6D1B29] border border-[#C5A059]/50 mt-0.5 flex-shrink-0 shadow-xs">
                     <CheckCircle2 className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-800">
+                    <p className="text-xs font-bold text-[#0E1B2E]">
                       {act.action.replace(/_/g, ' ')}
                     </p>
-                    <p className="text-[11px] text-slate-500 truncate">
-                      By {act.performerName} ({act.performerRole}) • Module: {act.module}
+                    <p className="text-[11px] text-[#64748B] truncate mt-0.5 font-sans">
+                      Recorded by <span className="font-semibold text-[#0E1B2E]">{act.performerName}</span> ({act.performerRole}) • Module: {act.module}
                     </p>
                   </div>
-                  <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                  <span className="text-[10px] font-bold text-[#6D1B29] whitespace-nowrap bg-[#FAF0E6] px-2.5 py-0.5 rounded-full border border-[#C5A059]/30 font-mono">
                     {new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
               ))
             ) : (
-              <p className="py-6 text-center text-xs text-slate-400">No recent activity logged.</p>
+              <p className="py-10 text-center text-xs font-medium text-[#94A3B8]">No ledger transactions recorded in this cycle.</p>
             )}
           </div>
         </div>
 
-        {/* Quick Operations Panel */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs">
-          <div className="border-b border-slate-100 pb-3 mb-4">
-            <h3 className="text-sm font-bold text-slate-900">Quick Operations</h3>
-            <p className="text-xs text-slate-500">Fast action shortcuts</p>
+        {/* Quick Operations Hub */}
+        <div className="rounded-3xl border border-[#C5A059]/30 bg-white/95 p-6 backdrop-blur-md shadow-sm">
+          <div className="border-b border-[#E8E2D5] pb-4 mb-4">
+            <h3 className="font-classic text-base font-black text-[#0E1B2E] tracking-wide uppercase">Administrative Hub</h3>
+            <p className="text-xs text-[#64748B] mt-0.5 font-sans">Direct module access</p>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-3 font-sans">
             <Link
               href="/students"
-              className="flex items-center justify-between p-3 rounded-xl border border-slate-200/70 hover:border-blue-300 hover:bg-blue-50/50 transition group"
+              className="flex items-center justify-between p-3.5 rounded-2xl border border-[#E8E2D5] bg-[#FBF9F5] hover:border-[#6D1B29] hover:bg-[#FAF0E6]/50 transition-all duration-200 group shadow-xs"
             >
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-[#162A45]/10 text-[#162A45] border border-[#162A45]/30 shadow-xs">
                   <GraduationCap className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800">Add New Student</p>
-                  <p className="text-[10px] text-slate-500">Single or Excel batch</p>
+                  <p className="text-xs font-bold text-[#0E1B2E] group-hover:text-[#6D1B29] transition-colors">Register Student</p>
+                  <p className="text-[10px] text-[#64748B]">Single or Excel batch intake</p>
                 </div>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 transition" />
+              <ArrowUpRight className="h-4 w-4 text-[#C5A059] group-hover:text-[#6D1B29] group-hover:translate-x-0.5 transition-all" />
             </Link>
 
             <Link
               href="/marks"
-              className="flex items-center justify-between p-3 rounded-xl border border-slate-200/70 hover:border-blue-300 hover:bg-blue-50/50 transition group"
+              className="flex items-center justify-between p-3.5 rounded-2xl border border-[#E8E2D5] bg-[#FBF9F5] hover:border-[#C5A059] hover:bg-[#FAF0E6]/50 transition-all duration-200 group shadow-xs"
             >
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-xs">
                   <Award className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800">Record Marks</p>
-                  <p className="text-[10px] text-slate-500">Internal & External results</p>
+                  <p className="text-xs font-bold text-[#0E1B2E] group-hover:text-emerald-900 transition-colors">Record Marks</p>
+                  <p className="text-[10px] text-[#64748B]">Internal & University results</p>
                 </div>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 transition" />
+              <ArrowUpRight className="h-4 w-4 text-[#C5A059] group-hover:text-emerald-800 group-hover:translate-x-0.5 transition-all" />
             </Link>
 
             <Link
               href="/talent"
-              className="flex items-center justify-between p-3 rounded-xl border border-slate-200/70 hover:border-amber-300 hover:bg-amber-50/50 transition group"
+              className="flex items-center justify-between p-3.5 rounded-2xl border-2 border-[#C5A059]/60 bg-[#FAF0E6]/60 hover:border-[#C5A059] hover:bg-[#FAF0E6] transition-all duration-200 group shadow-xs"
             >
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-amber-100 text-amber-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-[#C5A059] text-[#0E1B2E] shadow-xs">
                   <Sparkles className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800">Evaluate Student Talent</p>
-                  <p className="text-[10px] text-slate-500">7-category assessment</p>
+                  <p className="text-xs font-black text-[#6D1B29] group-hover:text-[#0E1B2E] transition-colors">Talent Evaluation</p>
+                  <p className="text-[10px] text-[#64748B]">7-category assessment</p>
                 </div>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-slate-400 group-hover:text-amber-600 transition" />
+              <ArrowUpRight className="h-4 w-4 text-[#6D1B29] group-hover:translate-x-0.5 transition-all" />
             </Link>
 
             <Link
               href="/reports"
-              className="flex items-center justify-between p-3 rounded-xl border border-slate-200/70 hover:border-purple-300 hover:bg-purple-50/50 transition group"
+              className="flex items-center justify-between p-3.5 rounded-2xl border border-[#E8E2D5] bg-[#FBF9F5] hover:border-purple-300 hover:bg-purple-50/40 transition-all duration-200 group shadow-xs"
             >
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-purple-50 text-purple-800 border border-purple-300 shadow-xs">
                   <FileSpreadsheet className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800">Export Institutional Reports</p>
-                  <p className="text-[10px] text-slate-500">Excel & Printable formats</p>
+                  <p className="text-xs font-bold text-[#0E1B2E] group-hover:text-purple-900 transition-colors">Export Ledger</p>
+                  <p className="text-[10px] text-[#64748B]">Excel & Certified Printable PDFs</p>
                 </div>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-slate-400 group-hover:text-purple-600 transition" />
+              <ArrowUpRight className="h-4 w-4 text-[#C5A059] group-hover:text-purple-800 group-hover:translate-x-0.5 transition-all" />
             </Link>
           </div>
         </div>
@@ -399,3 +433,5 @@ export default function DashboardPage() {
     </DashboardLayout>
   );
 }
+
+

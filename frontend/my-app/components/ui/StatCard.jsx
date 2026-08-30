@@ -6,80 +6,105 @@ export default function StatCard({
   subtitle,
   icon: Icon,
   trend,
-  color = 'blue',
+  color = 'gold',
   onClick,
 }) {
   const colorMap = {
-    blue: {
-      bg: 'bg-blue-50/70',
-      iconBg: 'bg-blue-600 text-white',
-      border: 'border-blue-100',
-      text: 'text-blue-700',
+    gold: {
+      border: 'border-[#C5A059]/40 hover:border-[#C5A059]',
+      iconBg: 'bg-[#C5A059] text-[#0E1B2E]',
+      glow: 'from-[#C5A059]/15 to-transparent',
+      badge: 'bg-[#FAF0E6] text-[#6D1B29]',
+    },
+    maroon: {
+      border: 'border-[#6D1B29]/30 hover:border-[#6D1B29]',
+      iconBg: 'bg-[#6D1B29] text-[#FAF0E6]',
+      glow: 'from-[#6D1B29]/15 to-transparent',
+      badge: 'bg-[#FAF0E6] text-[#6D1B29]',
+    },
+    navy: {
+      border: 'border-[#162A45]/30 hover:border-[#162A45]',
+      iconBg: 'bg-[#0E1B2E] text-[#F3E5AB]',
+      glow: 'from-[#0E1B2E]/15 to-transparent',
+      badge: 'bg-slate-100 text-[#0E1B2E]',
     },
     emerald: {
-      bg: 'bg-emerald-50/70',
-      iconBg: 'bg-emerald-600 text-white',
-      border: 'border-emerald-100',
-      text: 'text-emerald-700',
+      border: 'border-emerald-200 hover:border-emerald-400',
+      iconBg: 'bg-emerald-700 text-white',
+      glow: 'from-emerald-600/15 to-transparent',
+      badge: 'bg-emerald-50 text-emerald-800',
     },
     amber: {
-      bg: 'bg-amber-50/70',
+      border: 'border-amber-200 hover:border-amber-400',
       iconBg: 'bg-amber-600 text-white',
-      border: 'border-amber-100',
-      text: 'text-amber-700',
+      glow: 'from-amber-500/15 to-transparent',
+      badge: 'bg-amber-50 text-amber-800',
     },
     rose: {
-      bg: 'bg-rose-50/70',
-      iconBg: 'bg-rose-600 text-white',
-      border: 'border-rose-100',
-      text: 'text-rose-700',
+      border: 'border-rose-200 hover:border-rose-400',
+      iconBg: 'bg-rose-700 text-white',
+      glow: 'from-rose-600/15 to-transparent',
+      badge: 'bg-rose-50 text-rose-800',
     },
     purple: {
-      bg: 'bg-purple-50/70',
-      iconBg: 'bg-purple-600 text-white',
-      border: 'border-purple-100',
-      text: 'text-purple-700',
+      border: 'border-purple-200 hover:border-purple-400',
+      iconBg: 'bg-purple-800 text-white',
+      glow: 'from-purple-600/15 to-transparent',
+      badge: 'bg-purple-50 text-purple-800',
     },
-    indigo: {
-      bg: 'bg-indigo-50/70',
-      iconBg: 'bg-indigo-600 text-white',
-      border: 'border-indigo-100',
-      text: 'text-indigo-700',
+    blue: {
+      border: 'border-blue-200 hover:border-blue-400',
+      iconBg: 'bg-[#162A45] text-[#C5A059]',
+      glow: 'from-blue-600/15 to-transparent',
+      badge: 'bg-blue-50 text-blue-800',
     },
   };
 
-  const scheme = colorMap[color] || colorMap.blue;
+  const scheme = colorMap[color] || colorMap.gold;
 
   return (
     <div
       onClick={onClick}
-      className={`relative overflow-hidden rounded-2xl border ${scheme.border} bg-white p-5 shadow-sm transition duration-200 hover:shadow-md ${
-        onClick ? 'cursor-pointer hover:border-slate-300' : ''
+      className={`group relative overflow-hidden rounded-3xl border ${scheme.border} bg-white/95 p-5.5 backdrop-blur-md shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${
+        onClick ? 'cursor-pointer' : ''
       }`}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</p>
-          <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
-            {value !== undefined ? value : '--'}
+      {/* Background ambient radial glow */}
+      <div
+        className={`absolute -top-12 -right-12 h-36 w-36 rounded-full bg-gradient-to-br ${scheme.glow} blur-2xl transition-all duration-300 group-hover:scale-125 group-hover:opacity-100 opacity-60 pointer-events-none`}
+      />
+
+      <div className="relative z-10 flex items-start justify-between">
+        <div className="flex-1 pr-2">
+          <p className="font-classic text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#6D1B29]">{title}</p>
+          <h3 className="mt-2 text-2xl font-black tracking-tight text-[#0E1B2E] md:text-3xl font-mono">
+            {value !== undefined && value !== null ? value : '--'}
           </h3>
-          {subtitle && <p className="mt-1 text-xs text-slate-500">{subtitle}</p>}
+          {subtitle && <p className="mt-1 text-xs font-medium text-[#64748B] truncate font-sans">{subtitle}</p>}
         </div>
+
         {Icon && (
-          <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${scheme.iconBg} shadow-sm`}>
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${scheme.iconBg} border border-[#C5A059]/40 shadow-md transition-transform duration-300 group-hover:scale-110`}
+          >
             <Icon className="h-6 w-6" />
           </div>
         )}
       </div>
 
       {trend && (
-        <div className="mt-4 flex items-center text-xs font-medium text-slate-600">
-          <span className={`mr-1 font-semibold ${trend.positive ? 'text-emerald-600' : 'text-rose-600'}`}>
+        <div className="relative z-10 mt-4 flex items-center gap-1.5 text-xs font-semibold">
+          <span
+            className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              trend.positive ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-rose-50 text-rose-800 border border-rose-300'
+            }`}
+          >
             {trend.positive ? '↑' : '↓'} {trend.text}
           </span>
-          {trend.label && <span className="text-slate-400">{trend.label}</span>}
+          {trend.label && <span className="text-[11px] text-[#64748B] font-normal">{trend.label}</span>}
         </div>
       )}
     </div>
   );
 }
+

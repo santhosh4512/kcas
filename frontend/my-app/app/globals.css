@@ -1,8 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #FBF9F5;
+  --foreground: #1A202C;
+  --oxford-navy: #0E1B2E;
+  --oxford-blue: #162A45;
+  --royal-maroon: #6D1B29;
+  --crimson-deep: #4A0E18;
+  --antique-gold: #C5A059;
+  --gold-champagne: #DFB96E;
+  --gold-glow: #F3E5AB;
+  --sand-ivory: #F5F2EB;
+  --parchment-border: #E8E2D5;
 }
 
 * {
@@ -17,8 +26,16 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+.font-classic {
+  font-family: var(--font-classic), 'Cinzel', 'Playfair Display', Georgia, serif;
+}
+
+.font-sans {
+  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 a {
@@ -37,16 +54,65 @@ a {
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #F5F2EB;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #C5A059;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #9A7B39;
+}
+
+/* Classic & Modern Geometric Micro-Pattern Canvas */
+.classic-modern-canvas {
+  background-color: #FBF9F5;
+  background-image: 
+    radial-gradient(rgba(197, 160, 89, 0.12) 1px, transparent 0),
+    radial-gradient(rgba(14, 27, 46, 0.04) 1px, transparent 0);
+  background-size: 24px 24px, 48px 48px;
+  background-position: 0 0, 12px 12px;
+  background-attachment: fixed;
+}
+
+/* Classic Neo-Modern Card */
+.classic-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(216, 205, 185, 0.8);
+  box-shadow: 0 4px 20px -2px rgba(14, 27, 46, 0.05), 0 2px 6px -1px rgba(197, 160, 89, 0.08);
+}
+
+.classic-card-hover {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.classic-card-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(197, 160, 89, 0.7);
+  box-shadow: 0 16px 32px -4px rgba(14, 27, 46, 0.08), 0 4px 12px rgba(197, 160, 89, 0.15);
+}
+
+/* Classic Gold Foil Gradient */
+.gold-foil-text {
+  background: linear-gradient(135deg, #B38728 0%, #FBF5B7 25%, #DAA520 50%, #AA771C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.royal-header-gradient {
+  background: linear-gradient(135deg, #0E1B2E 0%, #162A45 40%, #4A0E18 80%, #6D1B29 100%);
+}
+
+.classic-gold-border {
+  border: 1px solid #C5A059;
+}
+
+.classic-gold-accent {
+  box-shadow: inset 0 0 0 1px rgba(197, 160, 89, 0.35);
 }
 
 /* Print Clean Optimization */
