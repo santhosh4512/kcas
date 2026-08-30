@@ -45,6 +45,29 @@ async function ensureDefaultAdmin() {
         admin.status = 'Active';
         needsSave = true;
       }
+      if (admin.name !== 'Santhosh Siva (System Administrator)') {
+        admin.name = 'Santhosh Siva (System Administrator)';
+        needsSave = true;
+      }
+      if (admin.designation !== 'Chief Administrator & Systems Head') {
+        admin.designation = 'Chief Administrator & Systems Head';
+        needsSave = true;
+      }
+      if (!admin.permissions || admin.permissions.length === 0) {
+        admin.permissions = [
+          'view_students',
+          'edit_students',
+          'view_attendance',
+          'manage_attendance',
+          'view_marks',
+          'manage_marks',
+          'view_talent',
+          'manage_talent',
+          'view_reports',
+          'export_reports',
+        ];
+        needsSave = true;
+      }
 
       // Check if password matches DEFAULT_ADMIN_PASS, if not update it
       const isMatch = await admin.comparePassword(DEFAULT_ADMIN_PASS);
