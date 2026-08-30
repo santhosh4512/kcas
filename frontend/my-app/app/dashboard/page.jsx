@@ -315,6 +315,55 @@ export default function DashboardPage() {
         </ChartCard>
       </div>
 
+      {/* INSTITUTIONAL CIRCULARS & CAMPUS BULLETINS NOTICE HUB */}
+      <div className="mb-6 rounded-3xl border-2 border-[#C5A059]/40 bg-gradient-to-r from-[#0E1B2E] via-[#162A45] to-[#4A0E18] p-6 text-white shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#C5A059]/30 pb-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-[#FAF0E6]/10 border border-[#C5A059] flex items-center justify-center text-[#F3E5AB]">
+              <ScrollText className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-classic text-sm md:text-base font-black text-[#F3E5AB] uppercase tracking-wide">
+                Campus Circulars & Examination Bulletins
+              </h3>
+              <p className="text-xs text-[#E8E2D5]/80">Official notices affiliated to Thiruvalluvar University & KCAS Administration</p>
+            </div>
+          </div>
+          <span className="font-classic text-[10px] font-bold text-[#F3E5AB] bg-[#FAF0E6]/10 px-3 py-1 rounded-full border border-[#C5A059]/40 uppercase tracking-wider self-start sm:self-auto">
+            Academic Session 2026
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div className="p-4 rounded-2xl bg-white/5 border border-[#C5A059]/30 hover:bg-white/10 transition space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-amber-300 uppercase">Examination</span>
+              <span className="text-[10px] font-mono text-slate-300">Aug 2026</span>
+            </div>
+            <h4 className="font-bold text-white text-xs">Thiruvalluvar Univ End-Semester Exam Schedule</h4>
+            <p className="text-[11px] text-[#E8E2D5]/80">Theory & Practical examination hall tickets issued. Verify internal (25) & external (75) grade entries.</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/5 border border-emerald-400/30 hover:bg-white/10 transition space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-emerald-300 uppercase">Attendance Condonation</span>
+              <span className="text-[10px] font-mono text-slate-300">Active</span>
+            </div>
+            <h4 className="font-bold text-white text-xs">Mandatory 75% Minimum Attendance Cut-off</h4>
+            <p className="text-[11px] text-[#E8E2D5]/80">Students with attendance shortage (&lt;75%) flagged in red in the Attendance module for remedial sessions.</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/5 border border-purple-400/30 hover:bg-white/10 transition space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-purple-300 uppercase">Talent & Sports</span>
+              <span className="text-[10px] font-mono text-slate-300">Upcoming</span>
+            </div>
+            <h4 className="font-bold text-white text-xs">Annual Inter-Collegiate Arts & Sports Meet</h4>
+            <p className="text-[11px] text-[#E8E2D5]/80">Silambam, Athletics, Coding & Classical Dance nominations underway through the Talent Intelligence module.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Bottom Section: Recent Audit Log & Quick Access Hub */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Recent Activity Audit Ledger */}

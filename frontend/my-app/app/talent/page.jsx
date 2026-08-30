@@ -587,16 +587,118 @@ export default function TalentIntelligencePage() {
                   ))}
                 </div>
               ) : (
-                <div className="p-8 rounded-2xl border border-dashed border-slate-300 text-center text-slate-400">
+                <div className="p-6 rounded-2xl border border-dashed border-slate-300 text-center text-slate-400 text-xs">
                   No specific skills added yet. Click &apos;Add Skill / Achievement&apos; above.
                 </div>
               )}
             </div>
 
+            {/* AI CAREER PATHWAY & HIGHER EDUCATION INTELLIGENCE */}
+            {(() => {
+              const primary = selectedStudentTalent.talent?.primaryTalent?.category || 'studies';
+              const recommendations = {
+                technical: {
+                  title: 'Technology, Software Architecture & AI Systems',
+                  roles: ['Full-Stack Software Engineer', 'Data & AI Analyst', 'Cloud Solutions Developer', 'Cybersecurity Specialist'],
+                  higherEd: ['M.Sc Computer Science / Data Analytics', 'MCA (Master of Computer Applications)', 'MS in Artificial Intelligence'],
+                  certs: ['AWS Certified Cloud Practitioner', 'Python Institute PCAP', 'Google Professional Data Analyst'],
+                  action: 'Encourage participating in National Hackathons and open-source project development.',
+                },
+                sports: {
+                  title: 'Athletics, Physical Education & Sports Management',
+                  roles: ['State / National Athlete', 'Physical Education Director (PED)', 'Sports Physiotherapy & Nutrition Coach', 'Youth Academy Trainer'],
+                  higherEd: ['B.P.Ed / M.P.Ed (Physical Education)', 'Master of Sports Management', 'Diploma in Sports Coaching (NIS)'],
+                  certs: ['Sports Authority of India (SAI) Certification', 'First Aid & Sports Injury Management', 'Federation Referee License'],
+                  action: 'Nominate candidate for Inter-Collegiate & All-India Inter-University Tournaments.',
+                },
+                studies: {
+                  title: 'Academic Research, Higher Studies & Civil Services',
+                  roles: ['University Professor / Academician', 'Civil Services Officer (UPSC / TNPSC)', 'Scientific Research Fellow', 'Data Policy Researcher'],
+                  higherEd: ['M.Sc / M.A / M.Com (Honours)', 'Ph.D Doctoral Fellowship', 'Master of Public Administration (MPA)'],
+                  certs: ['UGC-NET / CSIR-NET Lectureship', 'GATE Examination', 'NPTEL Elite Gold Certifications'],
+                  action: 'Provide mentorship for Research Paper publications and competitive exam preparation.',
+                },
+                arts: {
+                  title: 'Creative Arts, Media Production & Design',
+                  roles: ['Creative Art Director', 'UI/UX Visual Designer', 'Performing Artist / Choreographer', 'Digital Content Producer'],
+                  higherEd: ['Master of Fine Arts (MFA)', 'M.Sc Visual Communication', 'Diploma in Animation & Graphic Design'],
+                  certs: ['Adobe Certified Professional', 'Classical Dance / Vocal Grade Examinations', 'Digital Illustration Masters'],
+                  action: 'Represent institution in Youth Cultural Festivals & State Art Exhibitions.',
+                },
+                communication: {
+                  title: 'Corporate Communications, Public Relations & Journalism',
+                  roles: ['Corporate PR & Media Strategist', 'Broadcast Journalist / News Anchor', 'Human Resources Executive', 'Institutional Spokesperson'],
+                  higherEd: ['M.A Journalism & Mass Communication', 'MBA in Human Resources', 'Master of International Relations'],
+                  certs: ['Toastmasters International Competent Communicator', 'Cambridge Business English (BEC)', 'Digital Marketing Specialist'],
+                  action: 'Appoint as Student Emcee for College Conferences and Debating Society Leader.',
+                },
+                leadership: {
+                  title: 'Strategic Management, Entrepreneurship & Administration',
+                  roles: ['Corporate Project Manager', 'Startup Founder / Entrepreneur', 'Operations Lead', 'NGO Director'],
+                  higherEd: ['MBA (Master of Business Administration)', 'Master of Strategic Management', 'Executive Leadership Diploma'],
+                  certs: ['PMI Agile Certified Practitioner', 'Six Sigma Green Belt', 'Harvard Business Online Leadership'],
+                  action: 'Entrust with Student Council leadership and institutional event organization.',
+                },
+                other: {
+                  title: 'Vocational & Entrepreneurial Mastery',
+                  roles: ['Specialized Domain Consultant', 'Vocational Training Specialist', 'Business Operations Executive'],
+                  higherEd: ['Master of Vocation (M.Voc)', 'Postgraduate Diploma in Management'],
+                  certs: ['National Skill Development Corporation (NSDC)', 'Skill India Certification'],
+                  action: 'Provide entrepreneurship incubation and domain skill enhancement support.',
+                },
+              };
+
+              const rec = recommendations[primary] || recommendations.studies;
+
+              return (
+                <div className="p-5 rounded-3xl border-2 border-[#C5A059]/40 bg-gradient-to-br from-[#0E1B2E] via-[#162A45] to-[#4A0E18] text-white shadow-md space-y-3">
+                  <div className="flex items-center gap-2 border-b border-[#C5A059]/30 pb-2">
+                    <Sparkles className="h-4 w-4 text-[#F3E5AB] animate-pulse" />
+                    <h4 className="font-classic text-xs font-black uppercase text-[#F3E5AB]">
+                      AI Talent Recommendation: {rec.title}
+                    </h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 rounded-2xl bg-white/10 border border-white/10">
+                      <span className="text-[10px] font-bold text-[#C5A059] uppercase block mb-1">Recommended Career Roles</span>
+                      <ul className="space-y-0.5 text-[11px] text-slate-200">
+                        {rec.roles.map((r, i) => (
+                          <li key={i}>• {r}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-white/10 border border-white/10">
+                      <span className="text-[10px] font-bold text-[#C5A059] uppercase block mb-1">Higher Education Pathways</span>
+                      <ul className="space-y-0.5 text-[11px] text-slate-200">
+                        {rec.higherEd.map((h, i) => (
+                          <li key={i}>• {h}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-white/10 border border-white/10">
+                      <span className="text-[10px] font-bold text-[#C5A059] uppercase block mb-1">Recommended Certifications</span>
+                      <ul className="space-y-0.5 text-[11px] text-slate-200">
+                        {rec.certs.map((c, i) => (
+                          <li key={i}>• {c}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-[#E8E2D5] italic pt-1">
+                    💡 <span className="font-bold text-[#F3E5AB]">Faculty Action:</span> {rec.action}
+                  </p>
+                </div>
+              );
+            })()}
+
             <div className="flex justify-end pt-4 border-t border-slate-100">
               <button
                 onClick={() => setIsProfileOpen(false)}
-                className="px-6 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition"
+                className="px-6 py-2.5 text-xs font-bold text-white bg-[#0E1B2E] hover:bg-[#162A45] rounded-xl transition font-classic"
               >
                 Close Talent Profile
               </button>

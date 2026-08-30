@@ -24,6 +24,9 @@ import {
   CalendarCheck,
   Award,
   Filter,
+  CreditCard,
+  Printer,
+  QrCode,
 } from 'lucide-react';
 
 export default function StudentsPage() {
@@ -50,6 +53,8 @@ export default function StudentsPage() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isExcelOpen, setIsExcelOpen] = useState(false);
+  const [isIdCardOpen, setIsIdCardOpen] = useState(false);
+  const [idCardStudent, setIdCardStudent] = useState(null);
 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [profileData, setProfileData] = useState(null);
@@ -371,6 +376,16 @@ export default function StudentsPage() {
             className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
           >
             <Eye className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              setIdCardStudent(row);
+              setIsIdCardOpen(true);
+            }}
+            title="Generate Official Student ID Card"
+            className="p-1.5 text-[#6D1B29] hover:text-[#0E1B2E] hover:bg-[#FAF0E6] rounded-lg transition"
+          >
+            <CreditCard className="h-4 w-4 text-[#C5A059]" />
           </button>
           {isAdminOrFaculty && (
             <>
@@ -970,6 +985,104 @@ export default function StudentsPage() {
                 className="px-5 py-2 text-xs font-bold text-white bg-[#0E1B2E] hover:bg-[#162A45] rounded-xl transition"
               >
                 Close Profile
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      {/* OFFICIAL STUDENT PHOTO ID CARD MODAL */}
+      <Modal
+        isOpen={isIdCardOpen}
+        onClose={() => setIsIdCardOpen(false)}
+        title="Official Student Identity Card"
+        subtitle={idCardStudent ? `${idCardStudent.name} (${idCardStudent.registerNumber})` : ''}
+        maxWidth="max-w-md"
+      >
+        {idCardStudent ? (
+          <div className="space-y-4 font-sans">
+            {/* ID Card Front Plate */}
+            <div className="relative overflow-hidden rounded-3xl border-2 border-[#C5A059] bg-gradient-to-br from-[#0E1B2E] via-[#162A45] to-[#4A0E18] p-5 text-white shadow-xl">
+              {/* Institution Header */}
+              <div className="flex items-center gap-3 border-b border-[#C5A059]/40 pb-3">
+                <div className="h-11 w-11 rounded-xl bg-white p-1 border border-[#C5A059] flex items-center justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/assets/images/kcas-logo.png" alt="KCAS" className="h-full w-full object-contain" />
+                </div>
+                <div>
+                  <h4 className="font-classic text-xs font-black text-[#F3E5AB] uppercase tracking-wide">
+                    Kamban College of Arts & Science
+                  </h4>
+                  <p className="text-[9px] text-[#E8E2D5]">Affiliated to Thiruvalluvar University • NAAC Accredited</p>
+                  <span className="text-[8px] font-bold text-[#C5A059] uppercase tracking-widest">
+                    Student Identity Card
+                  </span>
+                </div>
+              </div>
+
+              {/* Student Bio Grid */}
+              <div className="flex items-center gap-4 py-4">
+                <div className="h-20 w-20 rounded-2xl bg-white/10 border-2 border-[#C5A059] flex items-center justify-center font-bold text-2xl text-[#F3E5AB] shadow-md shrink-0">
+                  {idCardStudent.name?.charAt(0)}
+                </div>
+
+                <div className="space-y-1 text-xs">
+                  <h3 className="font-black text-sm text-white uppercase">{idCardStudent.name}</h3>
+                  <p className="text-[11px] font-mono font-bold text-[#C5A059]">
+                    REG: {idCardStudent.registerNumber}
+                  </p>
+                  <p className="text-[10px] text-slate-200">
+                    <span className="font-bold text-[#C5A059]">COURSE:</span> {idCardStudent.course?.courseName || 'Degree'}
+                  </p>
+                  <p className="text-[10px] text-slate-200">
+                    <span className="font-bold text-[#C5A059]">DEPT:</span> {idCardStudent.department?.name || 'Department'}
+                  </p>
+                  <p className="text-[10px] text-slate-200">
+                    <span className="font-bold text-[#C5A059]">ROLL:</span> {idCardStudent.rollNumber} • <span className="font-bold text-[#C5A059]">SEC:</span> {idCardStudent.section}
+                  </p>
+                </div>
+              </div>
+
+              {/* ID Card Footer & Barcode Simulator */}
+              <div className="flex items-center justify-between border-t border-[#C5A059]/40 pt-3 text-[9px] text-[#E8E2D5]">
+                <div>
+                  <span className="font-bold text-[#C5A059] block">VALID TILL:</span>
+                  <span>2024 - 2027</span>
+                </div>
+
+                <div className="text-center font-mono font-bold text-[8px] text-slate-300">
+                  <div className="tracking-widest bg-white/20 px-2 py-0.5 rounded border border-white/20">
+                    ||||| |||| ||||| ||||
+                  </div>
+                  <span>{idCardStudent.registerNumber}</span>
+                </div>
+
+                <div className="text-right">
+                  <span className="font-classic text-[8px] text-[#F3E5AB] font-bold block">
+                    Principal
+                  </span>
+                  <span className="italic text-[8px] text-slate-400">Authorized Sign</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Print & Close Controls */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#0E1B2E] bg-white border border-[#C5A059] rounded-xl hover:bg-[#FAF0E6] transition shadow-2xs font-classic"
+              >
+                <Printer className="h-4 w-4 text-[#C5A059]" />
+                <span>Print Official ID Card</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsIdCardOpen(false)}
+                className="px-5 py-2 text-xs font-bold text-white bg-[#0E1B2E] hover:bg-[#162A45] rounded-xl transition"
+              >
+                Close
               </button>
             </div>
           </div>
