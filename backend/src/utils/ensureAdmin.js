@@ -1,32 +1,30 @@
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
+require('dotenv').config();
 const User = require('../models/User');
 const connectDB = require('../config/db');
-
-dotenv.config();
 
 async function ensureAdminUser() {
   await connectDB();
   try {
-    let admin = await User.findOne({ email: 'santhoshsiva754@gmail.com' });
+    const email = 'santhoshsiva754@gmail.com';
+    let admin = await User.findOne({ email }).select('+password');
     if (!admin) {
-      admin = new User({
+      admin = await User.create({
         name: 'Santhosh Siva (Admin)',
-        email: 'santhoshsiva754@gmail.com',
+        email,
         password: '12345678',
         role: 'admin',
         status: 'Active',
         mustChangePassword: false,
       });
-      await admin.save();
       console.log('✅ Created Admin user santhoshsiva754@gmail.com with password 12345678');
     } else {
-      admin.password = '12345678';
-      admin.role = 'admin';
-      admin.status = 'Active';
-      admin.mustChangePassword = false;
-      await admin.save();
-      console.log('✅ Updated Admin user santhoshsiva754@gmail.com with password 12345678');
+      let needsSave = false;
+      if (admin.role !== 'admin') { admin.role = 'admin'; needsSave = true; }
+      if (admin.status !== 'Active') { admin.status = 'Active'; needsSave = true; }
+      const isMatch = await admin.comparePassword('12345678');
+      if (!isMatch) { admin.password = '12345678'; needsSave = true; }
+      if (needsSave) await admin.save();
+      console.log('✅ Verified Admin user santhoshsiva754@gmail.com');
     }
   } catch (err) {
     console.error('Error ensuring admin:', err);

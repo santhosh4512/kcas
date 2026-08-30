@@ -198,6 +198,8 @@ async function upsertStudent(data) {
 
 async function seedDatabase() {
   try {
+    console.log('🌱 Initializing/Verifying KCAS institutional database records...');
+
     // 1. Seed Core Administrators (Idempotent)
     await upsertUser({
       name: 'Santhosh Siva (System Administrator)',
@@ -792,7 +794,7 @@ async function seedDatabase() {
       );
     }
 
-    console.log('Institutional database verification & seeding completed successfully.');
+    console.log('✅ Institutional database verification & seeding completed successfully.');
   } catch (err) {
     console.error('❌ Error during institutional seeding:', err.message);
     throw err;
