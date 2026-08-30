@@ -7,8 +7,7 @@ const errorHandler = require('./middleware/errorHandler');
 // Load environment variables
 dotenv.config();
 
-// Connect Database
-connectDB();
+const path = require('path');
 
 const app = express();
 
@@ -22,8 +21,6 @@ app.use(
   })
 );
 app.options('*', cors());
-
-const path = require('path');
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
@@ -64,15 +61,11 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
 
-const server = app.listen(PORT, async () => {
-  console.log(`\n===============================================================`);
-  console.log(`🏛️  KAMBAN COLLEGE OF ARTS AND SCIENCE FOR WOMEN`);
-  console.log(`🎯  Department Management & Student Talent Intelligence System`);
-  console.log(`🌐  REST API Server running on port ${PORT}`);
-  console.log(`⚡  API Base: http://localhost:${PORT}/api`);
-  console.log(`===============================================================\n`);
+async function startServer() {
+  // 1. Connect to Database
+  await connectDB();
 
-  // Auto-seed if database is empty and guarantee master admin
+  // 2. Perform idempotent database seeding and guarantee master admin
   try {
     const seedDatabase = require('./seed/seedData');
     await seedDatabase();
@@ -81,7 +74,19 @@ const server = app.listen(PORT, async () => {
   } catch (err) {
     console.error('Seed check error:', err.message);
   }
-});
+
+  // 3. Start Express HTTP Server
+  app.listen(PORT, () => {
+    console.log(`\n===============================================================`);
+    console.log(`🏛️  KAMBAN COLLEGE OF ARTS AND SCIENCE FOR WOMEN`);
+    console.log(`🎯  Department Management & Student Talent Intelligence System`);
+    console.log(`🌐  REST API Server running on port ${PORT}`);
+    console.log(`⚡  API Base: http://localhost:${PORT}/api`);
+    console.log(`===============================================================\n`);
+  });
+}
+
+startServer();
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {

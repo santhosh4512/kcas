@@ -12,33 +12,78 @@ const Skill = require('../models/Skill');
 const AuditLog = require('../models/AuditLog');
 const talentService = require('../services/talentService');
 
-// Helper to upsert User idempotently
-async function upsertUser(data) {
-  const email = data.email.toLowerCase();
+// Helper to upsert User idempotently and safely
+async function upsertUser(userData) {
+  const email = userData.email.trim().toLowerCase();
   let user = await User.findOne({ email }).select('+password');
+
   if (!user) {
-    user = await User.create({ ...data, email });
+    user = await User.create({
+      ...userData,
+      email,
+    });
   } else {
-    // Update existing user fields
-    user.name = data.name || user.name;
-    user.role = data.role || user.role;
-    user.status = data.status || user.status;
-    if (data.department) user.department = data.department;
-    if (data.designation) user.designation = data.designation;
-    if (data.employeeId) user.employeeId = data.employeeId;
-    if (data.permissions) user.permissions = data.permissions;
-    if (data.referenceId) user.referenceId = data.referenceId;
-    if (data.roleRefModel) user.roleRefModel = data.roleRefModel;
-    if (data.phone) user.phone = data.phone;
-    if (data.profilePhoto) user.profilePhoto = data.profilePhoto;
-    if (data.avatar) user.avatar = data.avatar;
-    if (data.password) {
-      const isMatch = await user.comparePassword(data.password);
+    let hasChanges = false;
+    if (userData.name && user.name !== userData.name) {
+      user.name = userData.name;
+      hasChanges = true;
+    }
+    if (userData.role && user.role !== userData.role) {
+      user.role = userData.role;
+      hasChanges = true;
+    }
+    if (userData.status && user.status !== userData.status) {
+      user.status = userData.status;
+      hasChanges = true;
+    }
+    if (userData.department && String(user.department) !== String(userData.department)) {
+      user.department = userData.department;
+      hasChanges = true;
+    }
+    if (userData.designation && user.designation !== userData.designation) {
+      user.designation = userData.designation;
+      hasChanges = true;
+    }
+    if (userData.employeeId && user.employeeId !== userData.employeeId) {
+      user.employeeId = userData.employeeId;
+      hasChanges = true;
+    }
+    if (userData.permissions && JSON.stringify(user.permissions) !== JSON.stringify(userData.permissions)) {
+      user.permissions = userData.permissions;
+      hasChanges = true;
+    }
+    if (userData.referenceId && String(user.referenceId) !== String(userData.referenceId)) {
+      user.referenceId = userData.referenceId;
+      hasChanges = true;
+    }
+    if (userData.roleRefModel && user.roleRefModel !== userData.roleRefModel) {
+      user.roleRefModel = userData.roleRefModel;
+      hasChanges = true;
+    }
+    if (userData.phone && user.phone !== userData.phone) {
+      user.phone = userData.phone;
+      hasChanges = true;
+    }
+    if (userData.profilePhoto && user.profilePhoto !== userData.profilePhoto) {
+      user.profilePhoto = userData.profilePhoto;
+      hasChanges = true;
+    }
+    if (userData.avatar && user.avatar !== userData.avatar) {
+      user.avatar = userData.avatar;
+      hasChanges = true;
+    }
+
+    if (userData.password) {
+      const isMatch = await user.comparePassword(userData.password);
       if (!isMatch) {
-        user.password = data.password;
+        user.password = userData.password;
+        hasChanges = true;
       }
     }
-    await user.save();
+
+    if (hasChanges) {
+      await user.save();
+    }
   }
   return user;
 }
@@ -80,11 +125,12 @@ async function upsertCourse(data) {
 
 // Helper to upsert Faculty idempotently
 async function upsertFaculty(data) {
+  const email = data.email.trim().toLowerCase();
   let fac = await Faculty.findOne({
-    $or: [{ employeeId: data.employeeId }, { email: data.email.toLowerCase() }],
+    $or: [{ employeeId: data.employeeId }, { email }],
   });
   if (!fac) {
-    fac = await Faculty.create({ ...data, email: data.email.toLowerCase() });
+    fac = await Faculty.create({ ...data, email });
   } else {
     fac.name = data.name || fac.name;
     fac.qualification = data.qualification || fac.qualification;
@@ -122,11 +168,12 @@ async function upsertSubject(data) {
 
 // Helper to upsert Student idempotently
 async function upsertStudent(data) {
+  const email = data.email.trim().toLowerCase();
   let stud = await Student.findOne({
-    $or: [{ registerNumber: data.registerNumber }, { studentId: data.studentId }],
+    $or: [{ registerNumber: data.registerNumber }, { studentId: data.studentId }, { email }],
   });
   if (!stud) {
-    stud = await Student.create({ ...data, email: data.email.toLowerCase() });
+    stud = await Student.create({ ...data, email });
   } else {
     stud.name = data.name || stud.name;
     stud.rollNumber = data.rollNumber || stud.rollNumber;
@@ -151,10 +198,8 @@ async function upsertStudent(data) {
 
 async function seedDatabase() {
   try {
-    console.log('🌱 Initializing/Verifying KCAS institutional database records...');
-
-    // 1. Upsert Core Users (Admin, Demo Faculty, Demo Student)
-    const adminUser = await upsertUser({
+    // 1. Seed Core Administrators (Idempotent)
+    await upsertUser({
       name: 'Santhosh Siva (System Administrator)',
       email: 'santhoshsiva754@gmail.com',
       password: '12345678',
@@ -345,7 +390,7 @@ async function seedDatabase() {
       profilePhoto: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=400&auto=format&fit=crop&q=80',
     });
 
-    // Link demo faculty login account
+    // Link demo faculty login account idempotently
     await upsertUser({
       name: 'Mrs. M. Saranya (Assistant Professor)',
       email: 'faculty@kcas.edu.in',
@@ -612,7 +657,7 @@ async function seedDatabase() {
       profilePhoto: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&auto=format&fit=crop&q=80',
     });
 
-    // Link demo student login account
+    // Link demo student login account idempotently
     await upsertUser({
       name: 'Pavithra D (Student)',
       email: 'student@kcas.edu.in',
@@ -747,9 +792,9 @@ async function seedDatabase() {
       );
     }
 
-    console.log('✅ Institutional database verification & seeding completed successfully.');
+    console.log('Institutional database verification & seeding completed successfully.');
   } catch (err) {
-    console.error('❌ Error during institutional seeding:', err);
+    console.error('❌ Error during institutional seeding:', err.message);
     throw err;
   }
 }
