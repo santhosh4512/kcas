@@ -22,6 +22,12 @@ import {
   X,
   ShieldCheck,
   ChevronRight,
+  BellRing,
+  CalendarDays,
+  FileCheck2,
+  AlertTriangle,
+  UserCheck,
+  ClipboardList,
 } from 'lucide-react';
 
 export default function Sidebar({ mobileOpen, setMobileOpen }) {
@@ -37,16 +43,62 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       roles: ['admin', 'faculty', 'student'],
     },
     {
-      label: 'Department Management',
-      href: '/departments',
-      icon: Building2,
-      roles: ['admin'],
+      label: 'Smart Notice Board',
+      href: '/notices',
+      icon: BellRing,
+      badge: 'Live',
+      roles: ['admin', 'faculty', 'student'],
+    },
+    {
+      label: 'Live Geo Attendance',
+      href: '/attendance',
+      icon: CalendarCheck,
+      badge: 'GPS',
+      roles: ['admin', 'faculty', 'student'],
+    },
+    {
+      label: 'Mentor Dashboard',
+      href: '/mentor',
+      icon: UserCheck,
+      roles: ['admin', 'faculty'],
+    },
+    {
+      label: 'Early Warning Radar',
+      href: '/early-warnings',
+      icon: AlertTriangle,
+      badge: 'Radar',
+      roles: ['admin', 'faculty'],
+    },
+    {
+      label: 'Progress Reports',
+      href: '/progress-reports',
+      icon: ClipboardList,
+      roles: ['admin', 'faculty', 'student'],
+    },
+    {
+      label: 'Events & Workshops',
+      href: '/events',
+      icon: CalendarDays,
+      roles: ['admin', 'faculty', 'student'],
+    },
+    {
+      label: 'Certificate Hub',
+      href: '/certificates',
+      icon: FileCheck2,
+      roles: ['admin', 'faculty', 'student'],
     },
     {
       label: 'Student Directory',
       href: '/students',
       icon: GraduationCap,
+      badge: 'Excel',
       roles: ['admin', 'faculty'],
+    },
+    {
+      label: 'Department Management',
+      href: '/departments',
+      icon: Building2,
+      roles: ['admin'],
     },
     {
       label: 'Faculty Registry',
@@ -59,12 +111,6 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       href: '/courses',
       icon: BookOpen,
       roles: ['admin', 'faculty'],
-    },
-    {
-      label: 'Live Attendance',
-      href: '/attendance',
-      icon: CalendarCheck,
-      roles: ['admin', 'faculty', 'student'],
     },
     {
       label: 'Marks & Results',
@@ -117,20 +163,20 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-[#0E1B2E]/80 backdrop-blur-sm lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/80 backdrop-blur-md lg:hidden transition-opacity"
         />
       )}
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 flex w-72 flex-col border-r border-[#C5A059]/30 bg-[#0E1B2E] text-[#F5F2EB] transition-transform duration-300 lg:translate-x-0 shadow-2xl ${
+        className={`fixed top-0 bottom-0 left-0 z-40 flex w-72 flex-col border-r border-[#D4AF37]/25 bg-[#070B14] text-[#F8FAFC] transition-transform duration-300 lg:translate-x-0 shadow-2xl ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Classic Institutional Header */}
-        <div className="flex h-22 items-center justify-between border-b border-[#C5A059]/25 px-5 bg-gradient-to-b from-[#162A45]/50 to-transparent">
+        <div className="flex h-22 items-center justify-between border-b border-[#D4AF37]/25 px-5 bg-gradient-to-b from-[#0F172A] to-transparent">
           <Link href="/dashboard" className="flex items-center gap-3 group">
-            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl border-2 border-[#C5A059] bg-white p-1 shadow-md group-hover:scale-105 transition-transform">
+            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl border-2 border-[#D4AF37] bg-white p-1 shadow-md group-hover:scale-105 transition-transform">
               <Image
                 src="/assets/images/kcas-logo.png"
                 alt="KCAS Crest"
@@ -143,8 +189,8 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                 Kamban College
               </h2>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#C5A059] animate-pulse" />
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#C5A059]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#D4AF37]">
                   Academic Portal
                 </p>
               </div>
@@ -153,7 +199,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
 
           <button
             onClick={() => setMobileOpen(false)}
-            className="rounded-xl p-1.5 text-[#E8E2D5]/60 hover:bg-white/10 hover:text-white lg:hidden transition"
+            className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden transition"
           >
             <X className="h-5 w-5" />
           </button>
@@ -164,9 +210,9 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
           <div className="px-4 pt-4">
             <Link
               href="/settings"
-              className="flex items-center gap-3 rounded-2xl border border-[#C5A059]/30 bg-gradient-to-r from-[#162A45]/80 via-[#1A3252]/60 to-[#6D1B29]/40 p-3 hover:border-[#C5A059] transition-all duration-200 group shadow-md"
+              className="flex items-center gap-3 rounded-2xl border border-[#D4AF37]/30 bg-gradient-to-r from-[#0F172A] via-[#1E293B]/80 to-[#3B0B14]/60 p-3 hover:border-[#D4AF37] transition-all duration-200 group shadow-lg"
             >
-              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#FAF0E6] border-2 border-[#C5A059] text-[#6D1B29] font-bold text-xs flex items-center justify-center shadow-md">
+              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-900 border-2 border-[#D4AF37] text-[#D4AF37] font-bold text-xs flex items-center justify-center shadow-md">
                 {user.profilePhoto || user.avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -190,21 +236,21 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                   {user.name}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="inline-flex items-center px-1.5 py-0.2 rounded-md text-[9px] font-extrabold uppercase tracking-widest bg-[#C5A059]/20 text-[#F3E5AB] border border-[#C5A059]/40">
+                  <span className="inline-flex items-center px-1.5 py-0.2 rounded-md text-[9px] font-extrabold uppercase tracking-widest bg-[#D4AF37]/20 text-[#F3E5AB] border border-[#D4AF37]/40">
                     {user.role}
                   </span>
                 </div>
               </div>
-              <ChevronRight className="h-4 w-4 text-[#C5A059]/70 group-hover:text-[#F3E5AB] group-hover:translate-x-0.5 transition-all" />
+              <ChevronRight className="h-4 w-4 text-[#D4AF37]/70 group-hover:text-[#F3E5AB] group-hover:translate-x-0.5 transition-all" />
             </Link>
           </div>
         )}
 
         {/* Navigation Items List */}
         <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-1.5">
-          <div className="flex items-center justify-between px-3 pb-2 pt-1 text-[10px] font-extrabold uppercase tracking-widest text-[#C5A059]/70">
+          <div className="flex items-center justify-between px-3 pb-2 pt-1 text-[10px] font-extrabold uppercase tracking-widest text-[#D4AF37]/70">
             <span>Academic Registry</span>
-            <span className="h-1 w-1 rounded-full bg-[#C5A059]" />
+            <span className="h-1 w-1 rounded-full bg-[#D4AF37]" />
           </div>
 
           {visibleNav.map((item) => {
@@ -218,16 +264,16 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                 onClick={() => setMobileOpen(false)}
                 className={`group relative flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-all duration-200 ${
                   isActive
-                    ? 'bg-gradient-to-r from-[#6D1B29] to-[#8C2234] text-white border border-[#C5A059]/60 shadow-lg shadow-[#6D1B29]/40 font-bold'
-                    : 'text-[#E8E2D5]/80 hover:bg-white/8 hover:text-white hover:border-l-2 hover:border-[#C5A059]'
+                    ? 'bg-gradient-to-r from-[#8C2234] via-[#6D1B29] to-[#4A0E18] text-white border border-[#D4AF37]/80 shadow-lg shadow-[#8C2234]/50 font-bold glow-maroon'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white hover:border-l-2 hover:border-[#D4AF37]'
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${
                       isActive
-                        ? 'bg-[#C5A059] text-[#0E1B2E] shadow-sm'
-                        : 'bg-white/5 text-[#C5A059] group-hover:bg-[#C5A059]/20 group-hover:text-[#F3E5AB]'
+                        ? 'bg-[#D4AF37] text-[#090D16] shadow-sm font-bold'
+                        : 'bg-slate-800 text-[#D4AF37] group-hover:bg-[#D4AF37]/20 group-hover:text-[#F3E5AB]'
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -239,8 +285,8 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                   <span
                     className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
                       isActive
-                        ? 'bg-[#F3E5AB] text-[#0E1B2E] shadow-xs'
-                        : 'bg-[#C5A059]/20 text-[#F3E5AB] border border-[#C5A059]/40'
+                        ? 'bg-[#F3E5AB] text-[#090D16] shadow-xs'
+                        : 'bg-[#D4AF37]/20 text-[#F3E5AB] border border-[#D4AF37]/40'
                     }`}
                   >
                     {item.badge}
@@ -252,21 +298,19 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
         </div>
 
         {/* Footer with Session Logout */}
-        <div className="border-t border-[#C5A059]/25 p-3.5 bg-[#0A1422]">
+        <div className="border-t border-[#D4AF37]/25 p-3.5 bg-[#05080E]">
           <button
             onClick={logout}
-            className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-800/60 transition-all duration-150 group"
+            className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold text-rose-400 hover:bg-rose-950/50 border border-transparent hover:border-rose-800/60 transition-all duration-150 group"
           >
             <div className="flex items-center gap-2.5">
               <LogOut className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
               <span>Sign Out Session</span>
             </div>
-            <span className="text-[10px] text-[#C5A059]/60 font-classic uppercase">Security</span>
+            <span className="text-[10px] text-[#D4AF37]/60 font-classic uppercase">Security</span>
           </button>
         </div>
       </aside>
     </>
   );
 }
-
-

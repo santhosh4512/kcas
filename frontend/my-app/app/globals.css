@@ -1,17 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #FBF9F5;
-  --foreground: #1A202C;
-  --oxford-navy: #0E1B2E;
-  --oxford-blue: #162A45;
-  --royal-maroon: #6D1B29;
-  --crimson-deep: #4A0E18;
-  --antique-gold: #C5A059;
-  --gold-champagne: #DFB96E;
-  --gold-glow: #F3E5AB;
-  --sand-ivory: #F5F2EB;
-  --parchment-border: #E8E2D5;
+  --background: #0B1120;
+  --foreground: #F8FAFC;
+  --card-bg: rgba(15, 23, 42, 0.85);
+  --card-border: rgba(212, 175, 55, 0.25);
+  --card-hover-border: rgba(212, 175, 55, 0.65);
+  --oxford-navy: #090D16;
+  --oxford-blue: #0F172A;
+  --royal-maroon: #581C28;
+  --crimson-deep: #3B0B14;
+  --antique-gold: #D4AF37;
+  --gold-champagne: #F3E5AB;
+  --gold-glow: #FDE047;
+  --sand-ivory: #F8FAFC;
+  --parchment-border: #1E293B;
 }
 
 * {
@@ -24,7 +27,14 @@ html {
 
 body {
   margin: 0;
-  background: var(--background);
+  background-color: #070B14;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(212, 175, 55, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(88, 28, 40, 0.15) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(15, 23, 42, 0.5) 0px, transparent 50%),
+    radial-gradient(rgba(212, 175, 55, 0.06) 1px, transparent 0);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px;
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -47,43 +57,32 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Custom Sleek Scrollbar */
+/* Custom Sleek Gold Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #F5F2EB;
+  background: #090D16;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #C5A059;
+  background: #D4AF37;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9A7B39;
+  background: #F5D77F;
 }
 
-/* Classic & Modern Geometric Micro-Pattern Canvas */
-.classic-modern-canvas {
-  background-color: #FBF9F5;
-  background-image: 
-    radial-gradient(rgba(197, 160, 89, 0.12) 1px, transparent 0),
-    radial-gradient(rgba(14, 27, 46, 0.04) 1px, transparent 0);
-  background-size: 24px 24px, 48px 48px;
-  background-position: 0 0, 12px 12px;
-  background-attachment: fixed;
-}
-
-/* Classic Neo-Modern Card */
+/* Luxury Glassmorphic Neo-Modern Card */
 .classic-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(216, 205, 185, 0.8);
-  box-shadow: 0 4px 20px -2px rgba(14, 27, 46, 0.05), 0 2px 6px -1px rgba(197, 160, 89, 0.08);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px -5px rgba(212, 175, 55, 0.05);
 }
 
 .classic-card-hover {
@@ -91,28 +90,81 @@ a {
 }
 
 .classic-card-hover:hover {
-  transform: translateY(-3px);
-  border-color: rgba(197, 160, 89, 0.7);
-  box-shadow: 0 16px 32px -4px rgba(14, 27, 46, 0.08), 0 4px 12px rgba(197, 160, 89, 0.15);
+  transform: translateY(-4px);
+  border-color: rgba(212, 175, 55, 0.6);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 25px 2px rgba(212, 175, 55, 0.18);
 }
 
-/* Classic Gold Foil Gradient */
+/* Luxury Gold Foil Gradient Text */
 .gold-foil-text {
-  background: linear-gradient(135deg, #B38728 0%, #FBF5B7 25%, #DAA520 50%, #AA771C 100%);
+  background: linear-gradient(135deg, #FFE082 0%, #D4AF37 40%, #FFF8DC 70%, #AA771C 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .royal-header-gradient {
-  background: linear-gradient(135deg, #0E1B2E 0%, #162A45 40%, #4A0E18 80%, #6D1B29 100%);
+  background: linear-gradient(135deg, #090D16 0%, #0F172A 40%, #3B0B14 80%, #581C28 100%);
 }
 
 .classic-gold-border {
-  border: 1px solid #C5A059;
+  border: 1px solid #D4AF37;
 }
 
 .classic-gold-accent {
-  box-shadow: inset 0 0 0 1px rgba(197, 160, 89, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.4);
+}
+
+/* Neon Glow Utilities */
+.glow-gold {
+  box-shadow: 0 0 20px -3px rgba(212, 175, 55, 0.35);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.35);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 20px -3px rgba(6, 182, 212, 0.35);
+}
+
+.glow-maroon {
+  box-shadow: 0 0 20px -3px rgba(140, 34, 52, 0.4);
+}
+
+/* Shimmer Animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-badge {
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.15) 0%, rgba(253, 224, 71, 0.35) 50%, rgba(212, 175, 55, 0.15) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite linear;
+}
+
+/* Radar Pulse Animation */
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.radar-live-ring {
+  animation: radar-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
 }
 
 /* Print Clean Optimization */

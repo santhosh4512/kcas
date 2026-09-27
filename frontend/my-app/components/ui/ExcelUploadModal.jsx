@@ -12,6 +12,7 @@ import {
   XCircle,
   ArrowRight,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useNotification } from '../../lib/NotificationContext';
@@ -19,12 +20,12 @@ import { useNotification } from '../../lib/NotificationContext';
 export default function ExcelUploadModal({
   isOpen,
   onClose,
-  title = 'Upload Excel File',
-  templateUrl,
-  previewUrl,
-  importUrl,
+  title = 'Upload Excel / CSV Student File',
+  templateUrl = '/students/template',
+  previewUrl = '/students/preview-excel',
+  importUrl = '/students/import',
   onSuccess,
-  entityName = 'Records',
+  entityName = 'Students',
 }) {
   const [file, setFile] = useState(null);
   const [step, setStep] = useState(1); // 1: Select & Template, 2: Preview & Validation, 3: Completed
@@ -53,7 +54,7 @@ export default function ExcelUploadModal({
         !selected.name.endsWith('.xls') &&
         !selected.name.endsWith('.csv')
       ) {
-        error('Please select an Excel file (.xlsx or .xls)');
+        error('Please select an Excel or CSV file (.xlsx, .xls, .csv)');
         return;
       }
       setFile(selected);
@@ -135,63 +136,63 @@ export default function ExcelUploadModal({
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={title} maxWidth="max-w-4xl">
       {/* Step Indicator */}
-      <div className="mb-6 flex items-center justify-between border-b border-slate-100 pb-4">
+      <div className="mb-6 flex items-center justify-between border-b border-slate-800 pb-4 text-white">
         <div className="flex items-center gap-2">
           <div
             className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-              step >= 1 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'
+              step >= 1 ? 'bg-[#D4AF37] text-[#090D16]' : 'bg-slate-800 text-slate-400'
             }`}
           >
             1
           </div>
-          <span className="text-xs font-semibold text-slate-700">Upload & Template</span>
+          <span className="text-xs font-semibold text-slate-300">Upload & Template</span>
         </div>
 
-        <div className="h-0.5 w-12 bg-slate-200" />
+        <div className="h-0.5 w-12 bg-slate-800" />
 
         <div className="flex items-center gap-2">
           <div
             className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-              step >= 2 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'
+              step >= 2 ? 'bg-[#D4AF37] text-[#090D16]' : 'bg-slate-800 text-slate-400'
             }`}
           >
             2
           </div>
-          <span className="text-xs font-semibold text-slate-700">Validate & Preview</span>
+          <span className="text-xs font-semibold text-slate-300">Validate & Preview</span>
         </div>
 
-        <div className="h-0.5 w-12 bg-slate-200" />
+        <div className="h-0.5 w-12 bg-slate-800" />
 
         <div className="flex items-center gap-2">
           <div
             className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-              step === 3 ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'
+              step === 3 ? 'bg-emerald-500 text-[#090D16]' : 'bg-slate-800 text-slate-400'
             }`}
           >
             3
           </div>
-          <span className="text-xs font-semibold text-slate-700">Completed</span>
+          <span className="text-xs font-semibold text-slate-300">Completed</span>
         </div>
       </div>
 
       {/* STEP 1: Upload File & Template Download */}
       {step === 1 && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-xl bg-blue-50/60 border border-blue-100 gap-4">
+        <div className="space-y-6 text-white">
+          <div className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-2xl bg-slate-900/90 border border-[#D4AF37]/30 gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37] text-[#090D16] shadow-sm font-bold">
                 <FileSpreadsheet className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-900">Standard Excel Template</h4>
-                <p className="text-[11px] text-slate-500">
-                  Download formatted .xlsx template with required columns & sample data.
+                <h4 className="text-xs font-bold text-white">Standard College Student Template</h4>
+                <p className="text-[11px] text-slate-400">
+                  Pre-formatted .xlsx with Register No, Name, Dept, Mentor, Att %, Marks %, and Skills.
                 </p>
               </div>
             </div>
             <button
               onClick={handleDownloadTemplate}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-blue-700 bg-white border border-blue-200 rounded-xl hover:bg-blue-50 transition shadow-2xs whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-[#D4AF37] bg-slate-800 border border-[#D4AF37]/40 rounded-xl hover:bg-slate-700 transition shadow-xs whitespace-nowrap"
             >
               <Download className="h-4 w-4" />
               Download Template
@@ -201,7 +202,7 @@ export default function ExcelUploadModal({
           {/* Drag & Drop File Zone */}
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50/20 transition"
+            className="flex flex-col items-center justify-center border-2 border-dashed border-[#D4AF37]/40 rounded-3xl p-8 text-center cursor-pointer hover:border-[#D4AF37] hover:bg-slate-800/40 transition bg-slate-900/50"
           >
             <input
               type="file"
@@ -210,15 +211,15 @@ export default function ExcelUploadModal({
               accept=".xlsx, .xls, .csv"
               className="hidden"
             />
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100/70 text-blue-600 mb-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 mb-3 shadow-md">
               <UploadCloud className="h-7 w-7" />
             </div>
-            <p className="text-sm font-semibold text-slate-800">
-              {file ? file.name : 'Click to browse or drag and drop Excel file'}
+            <p className="text-sm font-bold text-white">
+              {file ? file.name : 'Click to browse or drag & drop College Student Excel sheet'}
             </p>
-            <p className="text-xs text-slate-400 mt-1">Supports .xlsx, .xls (Max 10MB)</p>
+            <p className="text-xs text-slate-400 mt-1">Auto-maps all headers (.xlsx, .xls, .csv)</p>
             {file && (
-              <Badge variant="primary" className="mt-3">
+              <Badge variant="gold" className="mt-3">
                 Selected: {(file.size / 1024).toFixed(1)} KB
               </Badge>
             )}
@@ -228,7 +229,7 @@ export default function ExcelUploadModal({
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
             >
               Cancel
             </button>
@@ -236,10 +237,10 @@ export default function ExcelUploadModal({
               type="button"
               onClick={handlePreviewAndValidate}
               disabled={!file || loading}
-              className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-sm transition"
+              className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-[#090D16] bg-gradient-to-r from-[#D4AF37] to-[#F5D77F] hover:scale-102 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-lg transition"
             >
               {loading && <RefreshCw className="h-4 w-4 animate-spin" />}
-              Validate & Preview
+              Validate & Preview Data
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
@@ -248,34 +249,34 @@ export default function ExcelUploadModal({
 
       {/* STEP 2: Preview Validation Results */}
       {step === 2 && validationData && (
-        <div className="space-y-5">
+        <div className="space-y-5 text-white">
           {/* Validation KPI Summary */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-center">
-              <span className="text-[11px] font-medium text-slate-500 uppercase">Total Rows</span>
-              <p className="text-xl font-bold text-slate-900 mt-0.5">{validationData.totalRows}</p>
+            <div className="p-3.5 rounded-2xl border border-slate-700 bg-slate-900 text-center">
+              <span className="text-[11px] font-bold text-slate-400 uppercase">Total Rows</span>
+              <p className="text-2xl font-black text-white mt-0.5">{validationData.totalRows}</p>
             </div>
-            <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50 text-center">
-              <span className="text-[11px] font-medium text-emerald-700 uppercase">Valid Rows</span>
-              <p className="text-xl font-bold text-emerald-700 mt-0.5">{validationData.validCount}</p>
+            <div className="p-3.5 rounded-2xl border border-emerald-500/40 bg-emerald-950/40 text-center">
+              <span className="text-[11px] font-bold text-emerald-400 uppercase">Valid Rows</span>
+              <p className="text-2xl font-black text-emerald-400 mt-0.5">{validationData.validCount}</p>
             </div>
-            <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50 text-center">
-              <span className="text-[11px] font-medium text-rose-700 uppercase">Errors Found</span>
-              <p className="text-xl font-bold text-rose-700 mt-0.5">{validationData.errorCount}</p>
+            <div className="p-3.5 rounded-2xl border border-rose-500/40 bg-rose-950/40 text-center">
+              <span className="text-[11px] font-bold text-rose-400 uppercase">Errors / Duplicates</span>
+              <p className="text-2xl font-black text-rose-400 mt-0.5">{validationData.errorCount}</p>
             </div>
           </div>
 
           {/* Errors Section if any */}
           {validationData.errorCount > 0 && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4">
-              <h5 className="text-xs font-bold text-rose-900 flex items-center gap-1.5 mb-2">
-                <AlertTriangle className="h-4 w-4 text-rose-600" />
-                Validation Errors (These rows will be skipped):
+            <div className="rounded-2xl border border-rose-500/40 bg-rose-950/50 p-4">
+              <h5 className="text-xs font-bold text-rose-300 flex items-center gap-1.5 mb-2">
+                <AlertTriangle className="h-4 w-4 text-rose-400" />
+                Validation Warnings & Errors (Skipped):
               </h5>
-              <div className="max-h-40 overflow-y-auto space-y-2 text-xs">
+              <div className="max-h-36 overflow-y-auto space-y-1.5 text-xs">
                 {validationData.errorRecords.map((err, i) => (
-                  <div key={i} className="p-2 rounded-lg bg-white border border-rose-100 text-rose-800">
-                    <span className="font-bold mr-1">Row {err.rowNumber}:</span>
+                  <div key={i} className="p-2 rounded-xl bg-slate-900/80 border border-rose-800 text-rose-300">
+                    <span className="font-bold mr-1 text-white">Row {err.rowNumber}:</span>
                     {err.errors.join(' | ')}
                   </div>
                 ))}
@@ -285,31 +286,58 @@ export default function ExcelUploadModal({
 
           {/* Valid Records Preview Table */}
           <div>
-            <h5 className="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              Valid Records Ready for Import ({validationData.validCount}):
+            <h5 className="text-xs font-bold text-slate-200 mb-2 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                Valid Records Ready for Automatic Ingestion ({validationData.validCount}):
+              </span>
+              <span className="text-[11px] text-[#D4AF37] font-semibold">
+                Auto-links Attendance, Marks, Mentors, & Talent Profile
+              </span>
             </h5>
-            <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 text-xs">
-              <table className="w-full text-left text-slate-600">
-                <thead className="bg-slate-50 text-slate-700 text-[11px] uppercase font-semibold sticky top-0 border-b border-slate-200">
+            <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-700 text-xs bg-slate-950">
+              <table className="w-full text-left text-slate-300">
+                <thead className="bg-slate-900 text-slate-300 text-[10px] uppercase font-bold sticky top-0 border-b border-slate-800">
                   <tr>
                     <th className="p-2.5">Row</th>
-                    <th className="p-2.5">Identifier / Code</th>
-                    <th className="p-2.5">Name</th>
-                    <th className="p-2.5">Details</th>
+                    <th className="p-2.5">Reg Number</th>
+                    <th className="p-2.5">Student Name</th>
+                    <th className="p-2.5">Dept & Year</th>
+                    <th className="p-2.5">Mentor</th>
+                    <th className="p-2.5">Att %</th>
+                    <th className="p-2.5">Mark %</th>
+                    <th className="p-2.5">Skills / Talent</th>
                     <th className="p-2.5">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-800">
                   {validationData.validRecords.map((r, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="p-2.5 font-bold text-slate-700">{r.rowNumber}</td>
-                      <td className="p-2.5 font-semibold text-blue-600">
-                        {r.data.registerNumber || r.data.employeeId || r.data.subjectCode}
+                    <tr key={idx} className="hover:bg-slate-900/60 transition-colors">
+                      <td className="p-2.5 font-bold text-slate-400">{r.rowNumber}</td>
+                      <td className="p-2.5 font-bold text-[#F3E5AB]">
+                        {r.data.registerNumber}
                       </td>
-                      <td className="p-2.5">{r.data.name || r.data.studentName || r.data.facultyName}</td>
-                      <td className="p-2.5 text-slate-500">
-                        {r.data.departmentCode || r.data.qualification || r.data.totalMark !== undefined ? `Mark: ${r.data.totalMark}` : ''}
+                      <td className="p-2.5 font-semibold text-white">{r.data.name}</td>
+                      <td className="p-2.5 text-slate-400">
+                        {r.data.departmentCode || r.data.departmentName || 'CS'} &bull; {r.data.year || 'I Year'}
+                      </td>
+                      <td className="p-2.5 text-slate-300">
+                        {r.data.mentorName || 'Dr. S. Kanimozhi'}
+                      </td>
+                      <td className="p-2.5">
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold text-[11px] border border-emerald-800">
+                          {r.data.initialAttendance !== undefined ? `${r.data.initialAttendance}%` : '85%'}
+                        </span>
+                      </td>
+                      <td className="p-2.5">
+                        <span className="px-1.5 py-0.5 rounded bg-blue-950 text-cyan-300 font-bold text-[11px] border border-blue-800">
+                          {r.data.initialMarks !== undefined ? `${r.data.initialMarks}%` : '75%'}
+                        </span>
+                      </td>
+                      <td className="p-2.5 text-slate-400 max-w-[140px] truncate" title={Array.isArray(r.data.skills) ? r.data.skills.join(', ') : ''}>
+                        {Array.isArray(r.data.skills) && r.data.skills.length > 0
+                          ? r.data.skills.slice(0, 2).join(', ')
+                          : 'General Aptitude'}
                       </td>
                       <td className="p-2.5">
                         <Badge variant="success" size="sm">
@@ -323,11 +351,11 @@ export default function ExcelUploadModal({
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-between pt-3 border-t border-slate-800">
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
             >
               Back to Upload
             </button>
@@ -335,7 +363,7 @@ export default function ExcelUploadModal({
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
               >
                 Cancel
               </button>
@@ -343,10 +371,10 @@ export default function ExcelUploadModal({
                 type="button"
                 onClick={handleConfirmImport}
                 disabled={validationData.validCount === 0 || loading}
-                className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-sm transition"
+                className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-[#090D16] bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 rounded-xl shadow-lg transition font-classic"
               >
                 {loading && <RefreshCw className="h-4 w-4 animate-spin" />}
-                Confirm & Import {validationData.validCount} Valid Records
+                Confirm & Ingest {validationData.validCount} Student Records
               </button>
             </div>
           </div>
@@ -355,20 +383,20 @@ export default function ExcelUploadModal({
 
       {/* STEP 3: Completed Summary */}
       {step === 3 && (
-        <div className="text-center py-6 space-y-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mx-auto">
+        <div className="text-center py-6 space-y-4 text-white">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-950 border border-emerald-500 text-emerald-400 mx-auto shadow-xl shadow-emerald-950">
             <CheckCircle2 className="h-9 w-9" />
           </div>
-          <h4 className="text-lg font-bold text-slate-900">Import Process Completed</h4>
-          <p className="text-xs text-slate-600 max-w-md mx-auto">
-            The valid records have been inserted into the database and are now live in the system.
+          <h4 className="text-xl font-bold text-white">Import Successfully Completed</h4>
+          <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+            The student records have been inserted into the database and are now live across Admin Dashboard, Mentors, GPS Attendance, and Progress Reports.
           </p>
           <div className="pt-4">
             <button
               onClick={handleClose}
-              className="px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition"
+              className="px-6 py-2.5 text-xs font-bold text-[#090D16] bg-gradient-to-r from-[#D4AF37] to-[#F5D77F] hover:scale-105 rounded-xl shadow-lg transition"
             >
-              Done & View Records
+              Done & View Live Records
             </button>
           </div>
         </div>

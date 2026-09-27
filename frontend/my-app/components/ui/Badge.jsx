@@ -10,17 +10,17 @@ export default function Badge({ children, variant = 'default', size = 'md', clas
   };
 
   const variants = {
-    default: 'bg-[#F5F2EB] text-[#0E1B2E] border-[#C5A059]/30',
-    gold: 'bg-[#FAF0E6] text-[#6D1B29] border-[#C5A059] font-extrabold shadow-2xs',
-    royal: 'bg-gradient-to-r from-[#0E1B2E] via-[#162A45] to-[#6D1B29] text-[#F3E5AB] border border-[#C5A059]/60 shadow-sm font-classic tracking-widest',
-    maroon: 'bg-[#6D1B29]/10 text-[#6D1B29] border-[#6D1B29]/40 font-bold',
-    navy: 'bg-[#0E1B2E]/10 text-[#0E1B2E] border-[#162A45]/40 font-bold',
-    primary: 'bg-[#162A45] text-[#F3E5AB] border border-[#C5A059]/40',
-    success: 'bg-emerald-50 text-emerald-800 border-emerald-300',
-    warning: 'bg-amber-50 text-amber-900 border-amber-300',
-    danger: 'bg-rose-50 text-rose-800 border-rose-300',
-    purple: 'bg-purple-50 text-purple-800 border-purple-300',
-    talent: 'bg-gradient-to-r from-[#FAF0E6] via-amber-50 to-[#FAF0E6] text-[#6D1B29] border-2 border-[#C5A059] font-classic font-black shadow-xs',
+    default: 'bg-slate-800/80 text-slate-200 border-slate-700',
+    gold: 'bg-[#D4AF37]/20 text-[#F3E5AB] border-[#D4AF37]/60 font-extrabold shadow-sm',
+    royal: 'bg-gradient-to-r from-[#090D16] via-[#1E293B] to-[#581C28] text-[#F3E5AB] border border-[#D4AF37]/70 shadow-sm font-classic tracking-widest',
+    maroon: 'bg-[#8C2234]/25 text-rose-300 border-[#8C2234]/50 font-bold',
+    navy: 'bg-blue-950/60 text-cyan-300 border-blue-800/60 font-bold',
+    primary: 'bg-slate-900 text-[#F3E5AB] border border-[#D4AF37]/50',
+    success: 'bg-emerald-950/80 text-emerald-300 border-emerald-700/80',
+    warning: 'bg-amber-950/80 text-amber-300 border-amber-700/80',
+    danger: 'bg-rose-950/80 text-rose-300 border-rose-700/80',
+    purple: 'bg-purple-950/80 text-purple-300 border-purple-700/80',
+    talent: 'bg-gradient-to-r from-slate-900 via-amber-950/40 to-slate-900 text-[#F3E5AB] border border-[#D4AF37] font-classic font-bold shadow-xs',
   };
 
   return (
@@ -29,5 +29,3 @@ export default function Badge({ children, variant = 'default', size = 'md', clas
     </span>
   );
 }
-
-

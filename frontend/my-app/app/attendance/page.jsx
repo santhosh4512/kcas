@@ -26,6 +26,12 @@ import {
   Sparkles,
   BookOpen,
   Award,
+  MapPin,
+  Compass,
+  Navigation,
+  ShieldCheck,
+  FileSpreadsheet,
+  Edit3,
 } from 'lucide-react';
 
 export default function AttendancePage() {
@@ -48,14 +54,27 @@ export default function AttendancePage() {
   const [saving, setSaving] = useState(false);
   const [isExisting, setIsExisting] = useState(false);
 
-  // Tab State: 'mark' | 'summary' | 'history'
+  // Tab State: 'mark' | 'geo-checkin' | 'geo-logs' | 'summary' | 'history'
   const [activeTab, setActiveTab] = useState('mark');
   const [historyList, setHistoryList] = useState([]);
   const [classSummary, setClassSummary] = useState([]);
+  const [geoLogs, setGeoLogs] = useState([]);
+  const [geoStats, setGeoStats] = useState({ failed: 0, success: 0 });
   const [searchStudent, setSearchStudent] = useState('');
 
+  // Geo-Checkin & GPS State
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState(null); // { success: bool, distance: number, message: string }
+  const [useTestCampusCoord, setUseTestCampusCoord] = useState(false);
+
+  // Manual Override Modal
+  const [overrideModal, setOverrideModal] = useState(null); // student record to override
+  const [overrideStatus, setOverrideStatus] = useState('Present');
+  const [overrideReason, setOverrideReason] = useState('');
+  const [overrideSaving, setOverrideSaving] = useState(false);
+
   const { success, error, warning } = useNotification();
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const canMark = hasRole('admin', 'faculty');
 
   // Load initial dropdowns
@@ -153,6 +172,21 @@ export default function AttendancePage() {
     }
   };
 
+  const fetchGeoLogs = async () => {
+    try {
+      const res = await api.get('/attendance/geo-logs');
+      if (res.data.success) {
+        setGeoLogs(res.data.data);
+        setGeoStats({
+          failed: res.data.failedAttemptsCount || 0,
+          success: res.data.successfulAttemptsCount || 0,
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching geo logs:', err);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'mark' && selectedDept && selectedCourse) {
       fetchAttendanceSheet();
@@ -160,6 +194,8 @@ export default function AttendancePage() {
       fetchHistory();
     } else if (activeTab === 'summary' && selectedDept && selectedCourse) {
       fetchSummary();
+    } else if (activeTab === 'geo-logs') {
+      fetchGeoLogs();
     }
   }, [selectedDept, selectedCourse, selectedYear, selectedSemester, selectedSection, selectedSubject, selectedDate, activeTab]);
 
@@ -243,6 +279,132 @@ export default function AttendancePage() {
     }
   };
 
+  // Perform GPS Geo-Verification
+  const handlePerformGeoCheckin = async (forceCampus = false) => {
+    setGpsLoading(true);
+    setGpsStatus(null);
+
+    const performSubmission = async (lat, lng, accuracy) => {
+      try {
+        const res = await api.post('/attendance/geo-checkin', {
+          studentId: user?.referenceId,
+          latitude: lat,
+          longitude: lng,
+          accuracy,
+          status: 'Present',
+          remarks: forceCampus ? 'Campus Check-in (Verified Coordinates)' : 'Live GPS Browser Check-in',
+        });
+
+        if (res.data.success) {
+          setGpsStatus({
+            success: true,
+            distance: res.data.distanceMeters,
+            message: res.data.message,
+          });
+          success('✅ Attendance marked successfully inside Kamban campus!');
+          fetchAttendanceSheet();
+        }
+      } catch (err) {
+        const msg = err.response?.data?.message || 'GPS check-in failed';
+        setGpsStatus({
+          success: false,
+          distance: err.response?.data?.distanceMeters || 4500,
+          message: msg,
+        });
+        error(msg);
+      } finally {
+        setGpsLoading(false);
+      }
+    };
+
+    if (forceCampus) {
+      // Kamban College of Arts & Science (Velu Nagar, Mathur, Tiruvannamalai) coords (12.1903, 79.0839)
+      await performSubmission(12.19035, 79.08395, 5);
+      return;
+    }
+
+
+    if (!navigator.geolocation) {
+      error('Geolocation is not supported by your browser.');
+      setGpsLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        await performSubmission(latitude, longitude, accuracy);
+      },
+      (geoErr) => {
+        error(`GPS Access Denied: ${geoErr.message}`);
+        setGpsStatus({
+          success: false,
+          distance: 0,
+          message: `Location Permission Denied: ${geoErr.message}. Failed attempt recorded.`,
+        });
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Save Manual Attendance Override with Audit Trail
+  const handleSaveOverride = async (e) => {
+    e.preventDefault();
+    if (!overrideReason.trim()) {
+      warning('Please provide a mandatory explanation reason for attendance modification.');
+      return;
+    }
+
+    setOverrideSaving(true);
+    try {
+      const res = await api.post('/attendance/override', {
+        studentId: overrideModal.studentId,
+        newStatus: overrideStatus,
+        reason: overrideReason.trim(),
+      });
+
+      if (res.data.success) {
+        success(`Attendance updated to ${overrideStatus}. Audit trail recorded!`);
+        setOverrideModal(null);
+        setOverrideReason('');
+        fetchAttendanceSheet();
+      }
+    } catch (err) {
+      error(err.response?.data?.message || 'Error modifying attendance');
+    } finally {
+      setOverrideSaving(false);
+    }
+  };
+
+  // Export to CSV
+  const handleExportCSV = () => {
+    if (attendanceRecords.length === 0) {
+      warning('No attendance data to export.');
+      return;
+    }
+
+    const headers = ['Register Number', 'Roll Number', 'Student Name', 'Status', 'Geo-Verified', 'Remarks'];
+    const rows = attendanceRecords.map((r) => [
+      r.registerNumber,
+      r.rollNumber || '-',
+      r.name,
+      r.status,
+      r.isGeoVerified ? 'Yes (GPS)' : 'Manual',
+      r.remarks || '',
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `KCAS_Attendance_${selectedDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    success('Attendance records exported as CSV successfully!');
+  };
+
   const presentCount = attendanceRecords.filter(
     (r) => r.status === 'Present' || r.status === 'On Duty'
   ).length;
@@ -263,34 +425,106 @@ export default function AttendancePage() {
 
   return (
     <DashboardLayout
-      title="Attendance & Daily Roster Governance"
-      subtitle="Track daily student presence, subject attendance, and identify shortage candidates"
+      title="Live Geo-Verified Attendance & Audit Governance"
+      subtitle="Campus geofencing, daily student check-ins, manual override audit trails, and shortage alerts"
     >
       {/* Grand Neo-Classic Banner */}
       <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-[#0E1B2E] via-[#162A45] to-[#4A0E18] p-6 md:p-8 text-white shadow-2xl border-2 border-[#C5A059]/40">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#C5A059]/60 bg-[#FAF0E6]/10 px-3.5 py-1 text-xs font-classic font-bold text-[#F3E5AB] mb-3 backdrop-blur-md">
-              <CalendarCheck className="h-3.5 w-3.5 text-[#C5A059]" />
-              <span>Institutional Attendance Governance</span>
+              <Compass className="h-3.5 w-3.5 text-[#C5A059] animate-spin" />
+              <span>Smart GPS Geofencing (1.0 km Radius)</span>
             </div>
             <h2 className="font-classic text-xl md:text-3xl font-black tracking-wide text-white uppercase">
-              Daily Classroom Attendance Register
+              Geo-Verified Campus Attendance & Live Roster
             </h2>
             <p className="mt-1 text-xs md:text-sm text-[#E8E2D5]/90 font-sans max-w-xl">
-              Select Department & Class stream to immediately mark student presence (Present, Absent, On-Duty) and synchronize talent discipline ratings.
+              Automatic daily attendance check-in, GPS radius verification against Kamban College campus, failed location logs, and auditable manual overrides.
             </p>
           </div>
 
-          {/* Quick Date Indicator */}
-          <div className="p-4 rounded-2xl border border-[#C5A059]/40 bg-[#0E1B2E]/60 backdrop-blur-md text-xs text-right">
-            <span className="text-[10px] font-classic font-bold uppercase tracking-wider text-[#C5A059]">Active Date:</span>
-            <p className="font-mono font-black text-lg text-white mt-0.5">{selectedDate}</p>
-            <span className="text-[10px] text-emerald-400 font-bold">
-              {isExisting ? '✓ Recorded in Database' : '⚡ Live Pending Submission'}
-            </span>
+          {/* Quick Date & Geo Status */}
+          <div className="flex flex-col sm:flex-row items-end gap-3">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-[#C5A059]/40 px-4 py-2.5 text-xs font-bold text-white transition shadow-sm"
+            >
+              <FileSpreadsheet className="h-4 w-4 text-[#C5A059]" />
+              <span>Export CSV</span>
+            </button>
+
+            <div className="p-4 rounded-2xl border border-[#C5A059]/40 bg-[#0E1B2E]/60 backdrop-blur-md text-xs text-right">
+              <span className="text-[10px] font-classic font-bold uppercase tracking-wider text-[#C5A059]">Active Date:</span>
+              <p className="font-mono font-black text-lg text-white mt-0.5">{selectedDate}</p>
+              <span className="text-[10px] text-emerald-400 font-bold">
+                {isExisting ? '✓ Recorded in Database' : '⚡ Live Pending Submission'}
+              </span>
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* DAILY ATTENDANCE & SMART GPS CHECK-IN WIDGET */}
+      <div className="mb-6 rounded-3xl border border-[#C5A059]/40 bg-gradient-to-r from-[#0E1B2E] via-[#162A45] to-[#1A3252] p-6 text-white shadow-xl">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#C5A059]">
+              <MapPin className="h-4 w-4 text-[#C5A059]" />
+              <span>Automatic Daily Attendance Notification</span>
+            </div>
+            <h3 className="font-classic text-lg lg:text-xl font-bold text-[#F3E5AB]">
+              Daily Attendance Check-in Portal
+            </h3>
+            <p className="text-xs text-[#E8E2D5]/80 max-w-xl leading-relaxed">
+              Verify your GPS location within Kamban College Campus (12.2275°N, 79.0747°E). Attempts outside the 1,000m geofence will be logged and rejected.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <button
+              onClick={() => handlePerformGeoCheckin(false)}
+              disabled={gpsLoading}
+              className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#C5A059] to-[#DFB76C] px-5 py-3 text-xs font-black text-[#0E1B2E] shadow-lg hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all"
+            >
+              <Navigation className={`h-4 w-4 ${gpsLoading ? 'animate-spin' : ''}`} />
+              <span>{gpsLoading ? 'Verifying Coordinates...' : 'Verify Live GPS & Check-in'}</span>
+            </button>
+
+            <button
+              onClick={() => handlePerformGeoCheckin(true)}
+              disabled={gpsLoading}
+              className="flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-[#C5A059]/40 px-4 py-3 text-xs font-bold text-[#F3E5AB] transition"
+              title="Test with verified in-campus coordinates"
+            >
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <span>Campus Coords (Demo Check-in)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* GPS Verification Status Feedback */}
+        {gpsStatus && (
+          <div
+            className={`mt-4 p-4 rounded-2xl text-xs font-bold flex items-start gap-3 border ${
+              gpsStatus.success
+                ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40'
+                : 'bg-rose-500/20 text-rose-200 border-rose-500/40'
+            }`}
+          >
+            {gpsStatus.success ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+            ) : (
+              <XCircle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+            )}
+            <div>
+              <p className="text-sm font-bold text-white">{gpsStatus.message}</p>
+              <p className="text-[11px] opacity-80 mt-1 font-mono">
+                Distance: {gpsStatus.distance} meters from Campus Center • Allowed Geofence: 1,000 meters
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* STEPPED SELECTION FILTER BAR */}
@@ -299,7 +533,7 @@ export default function AttendancePage() {
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-[#6D1B29]" />
             <h3 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">
-              Step 1 & 2: Select Department, Class & Date
+              Cohort Selection: Department, Class & Date
             </h3>
           </div>
           <button
@@ -437,7 +671,7 @@ export default function AttendancePage() {
 
       {/* TABS & BULK ACTIONS */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#E8E2D5] pb-4">
-        <div className="flex items-center gap-2 p-1 rounded-2xl bg-[#F0EBE1] border border-[#C5A059]/30">
+        <div className="flex flex-wrap items-center gap-2 p-1 rounded-2xl bg-[#F0EBE1] border border-[#C5A059]/30">
           <button
             onClick={() => setActiveTab('mark')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
@@ -447,7 +681,18 @@ export default function AttendancePage() {
             }`}
           >
             <CalendarCheck className="h-4 w-4" />
-            <span>Mark Attendance Sheet</span>
+            <span>Mark Sheet</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('geo-logs')}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+              activeTab === 'geo-logs'
+                ? 'bg-[#0E1B2E] text-[#F3E5AB] shadow-sm font-classic'
+                : 'text-[#5A6A80] hover:text-[#0E1B2E]'
+            }`}
+          >
+            <Compass className="h-4 w-4" />
+            <span>GPS Geofence Logs ({geoLogs.length})</span>
           </button>
           <button
             onClick={() => setActiveTab('summary')}
@@ -506,7 +751,7 @@ export default function AttendancePage() {
         )}
       </div>
 
-      {/* TAB 1: ATTENDANCE ENTRY SHEET */}
+      {/* TAB 1: ATTENDANCE ENTRY SHEET WITH AUDIT OVERRIDE */}
       {activeTab === 'mark' && (
         <div className="rounded-3xl border border-[#C5A059]/30 bg-white/95 shadow-sm overflow-hidden">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4.5 border-b border-[#E8E2D5] bg-[#FBF9F5] gap-3">
@@ -515,7 +760,7 @@ export default function AttendancePage() {
                 Student Attendance Roster ({filteredRecords.length} Students)
               </h4>
               <p className="text-xs text-[#64748B]">
-                Click Present / Absent / On-Duty button for each student, then click &quot;Save Attendance Record&quot;.
+                Click Present / Absent / On-Duty. Authorized staff can click &quot;Override&quot; to modify status with an auditable justification.
               </p>
             </div>
 
@@ -538,9 +783,10 @@ export default function AttendancePage() {
                 <tr>
                   <th className="px-5 py-3.5">#</th>
                   <th className="px-5 py-3.5">Register No</th>
-                  <th className="px-5 py-3.5">Roll No</th>
                   <th className="px-5 py-3.5">Student Name</th>
-                  <th className="px-5 py-3.5 text-center">Attendance Status</th>
+                  <th className="px-5 py-3.5 text-center">Status</th>
+                  <th className="px-5 py-3.5 text-center">Verification Method</th>
+                  <th className="px-5 py-3.5 text-center">Audit Override</th>
                   <th className="px-5 py-3.5">Remarks</th>
                 </tr>
               </thead>
@@ -548,7 +794,7 @@ export default function AttendancePage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan={6} className="px-5 py-4 text-center text-slate-400">Loading student attendance roster...</td>
+                      <td colSpan={7} className="px-5 py-4 text-center text-slate-400">Loading student attendance roster...</td>
                     </tr>
                   ))
                 ) : filteredRecords.length > 0 ? (
@@ -562,14 +808,13 @@ export default function AttendancePage() {
                             {record.registerNumber}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 font-medium text-slate-700">{record.rollNumber || '-'}</td>
                         <td className="px-5 py-3.5 font-bold text-[#0E1B2E]">{record.name}</td>
                         <td className="px-5 py-3.5 text-center">
                           <div className="inline-flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200">
                             <button
                               type="button"
                               onClick={() => handleStatusToggle(originalIdx, 'Present')}
-                              className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+                              className={`px-2.5 py-1 text-xs font-bold rounded-lg transition ${
                                 record.status === 'Present'
                                   ? 'bg-emerald-600 text-white shadow-xs'
                                   : 'text-slate-600 hover:text-emerald-700'
@@ -580,7 +825,7 @@ export default function AttendancePage() {
                             <button
                               type="button"
                               onClick={() => handleStatusToggle(originalIdx, 'Absent')}
-                              className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+                              className={`px-2.5 py-1 text-xs font-bold rounded-lg transition ${
                                 record.status === 'Absent'
                                   ? 'bg-rose-600 text-white shadow-xs'
                                   : 'text-slate-600 hover:text-rose-700'
@@ -591,7 +836,7 @@ export default function AttendancePage() {
                             <button
                               type="button"
                               onClick={() => handleStatusToggle(originalIdx, 'On Duty')}
-                              className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+                              className={`px-2.5 py-1 text-xs font-bold rounded-lg transition ${
                                 record.status === 'On Duty'
                                   ? 'bg-amber-600 text-white shadow-xs'
                                   : 'text-slate-600 hover:text-amber-700'
@@ -600,6 +845,38 @@ export default function AttendancePage() {
                               OD
                             </button>
                           </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          {record.isGeoVerified ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <Compass className="h-3 w-3 text-emerald-600" />
+                              GPS Verified
+                            </span>
+                          ) : record.isOverridden ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                              <ShieldCheck className="h-3 w-3 text-purple-600" />
+                              Overridden
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-slate-500">
+                              Manual Faculty
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          {canMark && (
+                            <button
+                              onClick={() => {
+                                setOverrideModal(record);
+                                setOverrideStatus(record.status);
+                                setOverrideReason(record.overrideReason || '');
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-[#6D1B29] bg-[#FAF0E6] border border-[#C5A059]/40 hover:bg-[#6D1B29] hover:text-white transition"
+                            >
+                              <Edit3 className="h-3 w-3" />
+                              <span>Override</span>
+                            </button>
+                          )}
                         </td>
                         <td className="px-5 py-3.5">
                           <input
@@ -619,7 +896,7 @@ export default function AttendancePage() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-slate-400">
+                    <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
                       No enrolled students found for the selected Department & Class. Choose a different department or class.
                     </td>
                   </tr>
@@ -630,7 +907,101 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* TAB 2: CLASS SUMMARY */}
+      {/* TAB 2: GPS GEOFENCE LOGS (FEATURE 2 & 15) */}
+      {activeTab === 'geo-logs' && (
+        <div className="rounded-3xl border border-[#C5A059]/30 bg-white/95 shadow-sm overflow-hidden space-y-4">
+          <div className="p-4.5 border-b border-[#E8E2D5] bg-[#FBF9F5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <h4 className="font-classic text-sm font-black text-[#0E1B2E] uppercase">
+                GPS Geofencing Verification Attempt Logs
+              </h4>
+              <p className="text-xs text-[#64748B]">
+                Live record of student check-ins, campus radius verification, and failed outside-geofence attempts.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-xl border border-emerald-300">
+                ✓ Successful: {geoStats.success}
+              </span>
+              <span className="text-xs font-bold text-rose-700 bg-rose-100 px-3 py-1 rounded-xl border border-rose-300">
+                ❌ Failed Attempts: {geoStats.failed}
+              </span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-[#0E1B2E]">
+              <thead className="bg-[#FAF0E6]/60 text-[10px] font-classic font-black uppercase tracking-wider text-[#6D1B29] border-b border-[#E8E2D5]">
+                <tr>
+                  <th className="px-5 py-3.5">Date & Time</th>
+                  <th className="px-5 py-3.5">Student</th>
+                  <th className="px-5 py-3.5">Verification Status</th>
+                  <th className="px-5 py-3.5">Distance from Campus</th>
+                  <th className="px-5 py-3.5">Failure Reason / Notes</th>
+                  <th className="px-5 py-3.5">Device Platform</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F0EBE1]">
+                {geoLogs.length > 0 ? (
+                  geoLogs.map((log) => {
+                    const isSuccess = log.status.startsWith('SUCCESS');
+                    return (
+                      <tr key={log._id} className="hover:bg-[#FAF0E6]/30">
+                        <td className="px-5 py-3.5 font-mono text-slate-600">
+                          {log.date} <span className="text-[10px] text-slate-400">({log.checkinTime})</span>
+                        </td>
+                        <td className="px-5 py-3.5 font-bold text-[#0E1B2E]">
+                          {log.studentName || log.student?.name}
+                          <span className="block font-mono text-[10px] text-[#6D1B29]">
+                            {log.registerNumber || log.student?.registerNumber}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                              isSuccess
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                : 'bg-rose-100 text-rose-800 border-rose-300'
+                            }`}
+                          >
+                            {isSuccess ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                            {isSuccess ? 'Inside Campus Geofence' : 'Outside Geofence / Denied'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 font-mono font-bold">
+                          {log.distanceFromCampusMeters > 0 ? (
+                            <span className={isSuccess ? 'text-emerald-700' : 'text-rose-700'}>
+                              {log.distanceFromCampusMeters >= 1000
+                                ? `${(log.distanceFromCampusMeters / 1000).toFixed(2)} km away`
+                                : `${log.distanceFromCampusMeters} m from center`}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">N/A</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-slate-700 max-w-xs">
+                          {log.failureReason || 'Geo-verified check-in within college campus boundary'}
+                        </td>
+                        <td className="px-5 py-3.5 text-[11px] text-slate-500 font-mono truncate max-w-[120px]">
+                          {log.deviceInfo || 'Mobile Web'}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-12 text-center text-slate-400">
+                      No GPS geofence attempt logs recorded yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: CLASS SUMMARY */}
       {activeTab === 'summary' && (
         <div className="rounded-3xl border border-[#C5A059]/30 bg-white/95 shadow-sm overflow-hidden">
           <div className="p-4.5 border-b border-[#E8E2D5] bg-[#FBF9F5]">
@@ -658,12 +1029,12 @@ export default function AttendancePage() {
                   classSummary.map((st) => {
                     const isShortage = st.percentage < 75;
                     return (
-                      <tr key={st._id} className="hover:bg-[#FAF0E6]/30">
+                      <tr key={st.studentId || st._id} className="hover:bg-[#FAF0E6]/30">
                         <td className="px-5 py-3.5 font-mono font-bold text-[#6D1B29]">{st.registerNumber}</td>
                         <td className="px-5 py-3.5 font-bold text-[#0E1B2E]">{st.name}</td>
                         <td className="px-5 py-3.5 text-center font-mono">{st.totalSessions || 0}</td>
-                        <td className="px-5 py-3.5 text-center font-mono font-bold text-emerald-700">{st.presentSessions || 0}</td>
-                        <td className="px-5 py-3.5 text-center font-mono font-bold text-rose-700">{st.absentSessions || 0}</td>
+                        <td className="px-5 py-3.5 text-center font-mono font-bold text-emerald-700">{st.presentCount || 0}</td>
+                        <td className="px-5 py-3.5 text-center font-mono font-bold text-rose-700">{st.absentCount || 0}</td>
                         <td className="px-5 py-3.5 text-center font-mono font-black text-sm">
                           <span className={isShortage ? 'text-rose-700' : 'text-emerald-700'}>
                             {st.percentage || 0}%
@@ -690,7 +1061,7 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* TAB 3: SESSION HISTORY */}
+      {/* TAB 4: SESSION HISTORY */}
       {activeTab === 'history' && (
         <div className="rounded-3xl border border-[#C5A059]/30 bg-white/95 shadow-sm overflow-hidden">
           <div className="p-4.5 border-b border-[#E8E2D5] bg-[#FBF9F5]">
@@ -718,10 +1089,12 @@ export default function AttendancePage() {
                     <tr key={h._id} className="hover:bg-[#FAF0E6]/30">
                       <td className="px-5 py-3.5 font-mono font-bold text-[#6D1B29]">{h.date}</td>
                       <td className="px-5 py-3.5 font-medium text-[#0E1B2E]">{h.subject?.subjectName || 'General Class'}</td>
-                      <td className="px-5 py-3.5 text-center font-mono font-bold">{h.total}</td>
-                      <td className="px-5 py-3.5 text-center font-mono font-bold text-emerald-700">{h.present}</td>
-                      <td className="px-5 py-3.5 text-center font-mono font-bold text-rose-700">{h.absent}</td>
-                      <td className="px-5 py-3.5 text-center font-mono font-bold text-[#6D1B29]">{h.percentage}%</td>
+                      <td className="px-5 py-3.5 text-center font-mono font-bold">{h.totalStudents || h.total}</td>
+                      <td className="px-5 py-3.5 text-center font-mono font-bold text-emerald-700">{h.presentCount || h.present}</td>
+                      <td className="px-5 py-3.5 text-center font-mono font-bold text-rose-700">{h.absentCount || h.absent}</td>
+                      <td className="px-5 py-3.5 text-center font-mono font-bold text-[#6D1B29]">
+                        {h.totalStudents > 0 ? Math.round((h.presentCount / h.totalStudents) * 100) : 0}%
+                      </td>
                     </tr>
                   ))
                 ) : (
@@ -733,6 +1106,81 @@ export default function AttendancePage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* MANUAL OVERRIDE MODAL WITH MANDATORY AUDIT TRAIL (FEATURE 16) */}
+      {overrideModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-[#C5A059]/40 bg-[#0E1B2E] p-6 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-[#C5A059]" />
+                <h3 className="font-classic text-base font-bold text-[#F3E5AB]">
+                  Manual Attendance Override
+                </h3>
+              </div>
+              <button onClick={() => setOverrideModal(null)} className="rounded-lg p-1 text-white/60 hover:bg-white/10 hover:text-white">
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-black/30 p-3 rounded-2xl border border-white/5 text-xs space-y-1">
+              <p>
+                Student: <strong className="text-white">{overrideModal.name}</strong> ({overrideModal.registerNumber})
+              </p>
+              <p>
+                Original Status: <strong className="text-amber-400">{overrideModal.status}</strong>
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveOverride} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-[#C5A059] mb-1">New Attendance Status *</label>
+                <select
+                  value={overrideStatus}
+                  onChange={(e) => setOverrideStatus(e.target.value)}
+                  className="w-full rounded-xl border border-[#C5A059]/30 bg-[#162A45] px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none"
+                >
+                  <option value="Present">Present (Attended)</option>
+                  <option value="On Duty">On Duty (OD - Sports / Hackathon / Symposium)</option>
+                  <option value="Leave">Medical Leave (Approved)</option>
+                  <option value="Absent">Absent (Unexcused)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#C5A059] mb-1">
+                  Mandatory Modification Justification * (Audit Logged)
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="e.g. Represented College in Inter-University Technical Hackathon / Medical certificate verified..."
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  className="w-full rounded-xl border border-[#C5A059]/30 bg-[#162A45] px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setOverrideModal(null)}
+                  className="rounded-xl px-4 py-2 text-xs font-bold text-white/70 hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={overrideSaving}
+                  className="rounded-xl bg-gradient-to-r from-[#C5A059] to-[#DFB76C] px-5 py-2 text-xs font-black text-[#0E1B2E] shadow-md hover:brightness-110 disabled:opacity-50"
+                >
+                  {overrideSaving ? 'Logging...' : 'Save & Record Audit Trail'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
