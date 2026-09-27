@@ -6,49 +6,95 @@ const Student = require('../models/Student');
 const Faculty = require('../models/Faculty');
 
 /**
+ * Helper to find field value across multiple possible column aliases
+ */
+function getColumnValue(row, possibleNames, defaultValue = '') {
+  const keys = Object.keys(row);
+  for (const name of possibleNames) {
+    const directKey = keys.find(
+      (k) => k.trim().toLowerCase().replace(/[^a-z0-9]/g, '') === name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+    );
+    if (directKey && row[directKey] !== undefined && row[directKey] !== null && String(row[directKey]).trim() !== '') {
+      return String(row[directKey]).trim();
+    }
+  }
+  return defaultValue;
+}
+
+/**
+ * Standardize year string (e.g. "1" -> "I Year", "2nd" -> "II Year", "III Year" -> "III Year")
+ */
+function standardizeYear(val) {
+  if (!val) return 'I Year';
+  const v = String(val).trim().toUpperCase();
+  if (v.includes('IV') || v.includes('4') || v.includes('FINAL')) return 'IV Year';
+  if (v.includes('III') || v.includes('3') || v.includes('THIRD')) return 'III Year';
+  if (v.includes('II') || v.includes('2') || v.includes('SECOND')) return 'II Year';
+  if (v.includes('I') || v.includes('1') || v.includes('FIRST')) return 'I Year';
+  return val;
+}
+
+/**
+ * Standardize semester from year or semester string
+ */
+function standardizeSemester(semVal, yearVal) {
+  if (semVal) {
+    const s = String(semVal).trim().toUpperCase();
+    if (s.includes('1') || s.includes('I') && !s.includes('II') && !s.includes('IV')) return 'Semester 1';
+    if (s.includes('2') || s.includes('II')) return 'Semester 2';
+    if (s.includes('3') || s.includes('III')) return 'Semester 3';
+    if (s.includes('4') || s.includes('IV')) return 'Semester 4';
+    if (s.includes('5') || s.includes('V')) return 'Semester 5';
+    if (s.includes('6') || s.includes('VI')) return 'Semester 6';
+  }
+  const y = standardizeYear(yearVal);
+  if (y === 'I Year') return 'Semester 1';
+  if (y === 'II Year') return 'Semester 3';
+  if (y === 'III Year') return 'Semester 5';
+  if (y === 'IV Year') return 'Semester 7';
+  return 'Semester 1';
+}
+
+/**
  * Generate Excel Template for Students
  */
 function generateStudentTemplate() {
   const data = [
     {
-      'Register Number': '24UBCS001',
-      'Roll Number': 'CS2401',
-      'Student Name': 'Kanimozhi R',
-      'Gender': 'Female',
-      'Date of Birth (YYYY-MM-DD)': '2005-04-12',
-      'Email': 'kanimozhi.cs@kcas.edu.in',
-      'Phone': '9876543210',
-      'Department Code': 'CS',
-      'Course Code': 'BSC-CS',
-      'Year': 'I Year',
-      'Semester': 'Semester 1',
-      'Section': 'A',
-      'Parent Name': 'Rajendran M',
-      'Parent Phone': '9443322110',
-      'Address': 'Tiruvannamalai, Tamil Nadu',
+      'Register Number': '22UCS101',
+      'Student Name': 'K. Ananya',
+      'Department': 'Computer Science',
+      'Class/Section': 'III B.Sc CS - A',
+      'Year': 'III Year',
+      'Email': 'ananya.cs@kambancollege.edu.in',
+      'Phone Number': '9876543210',
+      'Mentor Name': 'Dr. S. Kanimozhi',
+      'Attendance': '92%',
+      'Marks': '88%',
+      'Skills': 'React, Python, Machine Learning',
+      'Achievements': '1st Prize Hackathon 2025, Zonal Sports Winner',
+      'Activities': 'Coding Club Secretary, NSS Volunteer',
     },
     {
-      'Register Number': '24UBCS002',
-      'Roll Number': 'CS2402',
-      'Student Name': 'Priyadharshini S',
-      'Gender': 'Female',
-      'Date of Birth (YYYY-MM-DD)': '2005-08-20',
-      'Email': 'priyadharshini.cs@kcas.edu.in',
-      'Phone': '9876543211',
-      'Department Code': 'CS',
-      'Course Code': 'BSC-CS',
-      'Year': 'I Year',
-      'Semester': 'Semester 1',
-      'Section': 'A',
-      'Parent Name': 'Senthil Kumar',
-      'Parent Phone': '9443322111',
-      'Address': 'Chengam, Tiruvannamalai',
+      'Register Number': '22UCS102',
+      'Student Name': 'M. Divyabharathi',
+      'Department': 'Computer Science',
+      'Class/Section': 'III B.Sc CS - A',
+      'Year': 'III Year',
+      'Email': 'divya.cs@kambancollege.edu.in',
+      'Phone Number': '9876543211',
+      'Mentor Name': 'Dr. S. Kanimozhi',
+      'Attendance': '86%',
+      'Marks': '82%',
+      'Skills': 'Classical Dance, English Oratory, Java',
+      'Achievements': 'State Level Natyanjali Gold Medalist',
+      'Activities': 'Cultural Team Lead, Debate Club',
     },
   ];
 
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Students_Template');
+  XLSX.utils.book_append_sheet(wb, ws, 'Student_Import_Template');
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 }
 
@@ -58,26 +104,15 @@ function generateStudentTemplate() {
 function generateFacultyTemplate() {
   const data = [
     {
-      'Employee ID': 'EMP101',
-      'Faculty Name': 'Dr. K. Anitha',
-      'Qualification': 'Ph.D., M.Sc., M.Phil.',
-      'Designation': 'Associate Professor & HOD',
+      'Employee ID': 'FAC101',
+      'Faculty Name': 'Dr. S. Kanimozhi',
+      'Qualification': 'M.Sc., M.Phil., Ph.D.',
+      'Designation': 'Associate Professor & Senior Mentor',
       'Department Code': 'CS',
-      'Email': 'anitha.cs@kcas.edu.in',
-      'Phone': '9840123456',
+      'Email': 'kanimozhi.cs@kambancollege.edu.in',
+      'Phone': '9840122334',
       'Experience': '12 Years',
-      'Specialization': 'Machine Learning, Data Mining',
-    },
-    {
-      'Employee ID': 'EMP102',
-      'Faculty Name': 'Mrs. M. Saranya',
-      'Qualification': 'M.C.A., M.Phil., SET',
-      'Designation': 'Assistant Professor',
-      'Department Code': 'CS',
-      'Email': 'saranya.cs@kcas.edu.in',
-      'Phone': '9840123457',
-      'Experience': '6 Years',
-      'Specialization': 'Web Technologies, Cloud Computing',
+      'Specialization': 'Artificial Intelligence, Data Structures',
     },
   ];
 
@@ -93,20 +128,12 @@ function generateFacultyTemplate() {
 function generateMarksTemplate() {
   const data = [
     {
-      'Register Number': '24UBCS001',
-      'Student Name': 'Kanimozhi R',
-      'Subject Code': 'CS101',
-      'Semester': 'Semester 1',
-      'Internal Mark (Max 25)': 23,
+      'Register Number': '22UCS101',
+      'Student Name': 'K. Ananya',
+      'Subject Code': 'CS301',
+      'Semester': 'Semester 5',
+      'Internal Mark (Max 25)': 24,
       'External Mark (Max 75)': 68,
-    },
-    {
-      'Register Number': '24UBCS002',
-      'Student Name': 'Priyadharshini S',
-      'Subject Code': 'CS101',
-      'Semester': 'Semester 1',
-      'Internal Mark (Max 25)': 21,
-      'External Mark (Max 75)': 62,
     },
   ];
 
@@ -117,7 +144,7 @@ function generateMarksTemplate() {
 }
 
 /**
- * Parse & Validate Student Excel Sheet
+ * Parse & Validate Student Excel Sheet with Dynamic Mapping & Deep Field Parsing
  */
 async function validateAndParseStudentExcel(fileBuffer) {
   const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
@@ -125,21 +152,35 @@ async function validateAndParseStudentExcel(fileBuffer) {
   const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
 
   if (!rawRows || rawRows.length === 0) {
-    throw new Error('The uploaded Excel sheet contains no data rows.');
+    throw new Error('The uploaded Excel/CSV sheet contains no data rows.');
   }
 
-  // Load existing records and reference caches
-  const [departments, courses, existingStudents] = await Promise.all([
+  // Load departments, courses, faculty mentors, and existing students
+  const [departments, courses, faculties, existingStudents] = await Promise.all([
     Department.find({}, 'code _id name'),
     Course.find({}, 'courseCode _id courseName department'),
+    Faculty.find({}, 'name email employeeId _id department'),
     Student.find({}, 'registerNumber email rollNumber'),
   ]);
 
-  const deptMap = new Map();
-  departments.forEach((d) => deptMap.set(d.code.toUpperCase(), d));
+  const deptCodeMap = new Map();
+  const deptNameMap = new Map();
+  departments.forEach((d) => {
+    deptCodeMap.set(d.code.toUpperCase(), d);
+    deptNameMap.set(d.name.toLowerCase(), d);
+  });
 
   const courseMap = new Map();
-  courses.forEach((c) => courseMap.set(c.courseCode.toUpperCase(), c));
+  courses.forEach((c) => {
+    courseMap.set(c.courseCode.toUpperCase(), c);
+    courseMap.set(c.courseName.toLowerCase(), c);
+  });
+
+  const facultyMap = new Map();
+  faculties.forEach((f) => {
+    facultyMap.set(f.name.toLowerCase().trim(), f);
+    if (f.email) facultyMap.set(f.email.toLowerCase().trim(), f);
+  });
 
   const existingRegNumbers = new Set(existingStudents.map((s) => s.registerNumber.toUpperCase()));
   const existingEmails = new Set(existingStudents.map((s) => s.email.toLowerCase()));
@@ -149,89 +190,259 @@ async function validateAndParseStudentExcel(fileBuffer) {
 
   const validRecords = [];
   const errorRecords = [];
+  let duplicateCount = 0;
 
   for (let i = 0; i < rawRows.length; i++) {
-    const rowNum = i + 2; // Row number in Excel (header is row 1)
+    const rowNum = i + 2; // Row in Excel
     const row = rawRows[i];
     const errors = [];
+    const warnings = [];
 
-    const regNo = String(row['Register Number'] || row['registerNumber'] || '').trim().toUpperCase();
-    const rollNo = String(row['Roll Number'] || row['rollNumber'] || '').trim().toUpperCase();
-    const name = String(row['Student Name'] || row['name'] || '').trim();
-    const email = String(row['Email'] || row['email'] || '').trim().toLowerCase();
-    const phone = String(row['Phone'] || row['phone'] || '').trim();
-    const deptCode = String(row['Department Code'] || row['departmentCode'] || '').trim().toUpperCase();
-    const courseCode = String(row['Course Code'] || row['courseCode'] || '').trim().toUpperCase();
-    const year = String(row['Year'] || row['year'] || 'I Year').trim();
-    const semester = String(row['Semester'] || row['semester'] || 'Semester 1').trim();
-    const section = String(row['Section'] || row['section'] || 'A').trim().toUpperCase();
-    const gender = String(row['Gender'] || row['gender'] || 'Female').trim();
-    const dob = String(row['Date of Birth (YYYY-MM-DD)'] || row['dob'] || '2005-01-01').trim();
-    const parentName = String(row['Parent Name'] || row['parentName'] || 'Parent').trim();
-    const parentPhone = String(row['Parent Phone'] || row['parentPhone'] || '').trim();
-    const address = String(row['Address'] || row['address'] || 'Tiruvannamalai').trim();
+    // Extract mapped fields using aliases
+    const regNo = getColumnValue(row, [
+      'Register Number', 'Register No', 'Reg No', 'RegNo', 'Registration Number',
+      'Registration No', 'Reg_No', 'RegisterNumber', 'Student ID', 'Roll No', 'Roll Number'
+    ]).toUpperCase();
 
-    // Required Field Validations
-    if (!regNo) errors.push('Register Number is required');
-    if (!rollNo) errors.push('Roll Number is required');
-    if (!name) errors.push('Student Name is required');
-    if (!email) errors.push('Email is required');
-    if (!phone) errors.push('Phone is required');
-    if (!deptCode) errors.push('Department Code is required');
-    if (!courseCode) errors.push('Course Code is required');
+    const name = getColumnValue(row, [
+      'Student Name', 'Name', 'StudentName', 'Candidate Name', 'Full Name', 'Name of the Student'
+    ]);
 
-    // Duplicate Check - Database
+    const rawDept = getColumnValue(row, [
+      'Department', 'Dept', 'Department Code', 'Dept Code', 'Branch', 'Department Name'
+    ]);
+
+    const rawClassSection = getColumnValue(row, [
+      'Class/Section', 'Class / Section', 'Class', 'Section', 'Course/Section', 'Sec', 'Class & Sec'
+    ]);
+
+    const rawYear = getColumnValue(row, [
+      'Year', 'Academic Year', 'Year of Study', 'Batch Year'
+    ]);
+
+    let email = getColumnValue(row, [
+      'Email', 'Email ID', 'Mail ID', 'Student Email', 'Email Address', 'E-mail'
+    ]).toLowerCase();
+
+    const phone = getColumnValue(row, [
+      'Phone Number', 'Phone', 'Mobile', 'Mobile No', 'Contact Number', 'Phone_Number', 'Contact No'
+    ]);
+
+    const mentorName = getColumnValue(row, [
+      'Mentor Name', 'Mentor', 'Faculty Mentor', 'Staff Advisor', 'Advisor', 'Tutor'
+    ]);
+
+    const rawAttendance = getColumnValue(row, [
+      'Attendance', 'Attendance %', 'Attendance Percentage', 'Att %', 'Present %', 'Overall Attendance'
+    ]);
+
+    const rawMarks = getColumnValue(row, [
+      'Marks', 'Marks %', 'Mark', 'Average Marks', 'Percentage', 'CGPA', 'Score', 'Overall Marks'
+    ]);
+
+    const rawSkills = getColumnValue(row, [
+      'Skills', 'Skill', 'Technical Skills', 'Key Skills', 'Core Skills'
+    ]);
+
+    const rawAchievements = getColumnValue(row, [
+      'Achievements', 'Achievement', 'Awards', 'Honors', 'Prizes'
+    ]);
+
+    const rawActivities = getColumnValue(row, [
+      'Activities', 'Activity', 'Extracurricular', 'Sports', 'Clubs', 'Co-curricular'
+    ]);
+
+    const gender = getColumnValue(row, ['Gender', 'Sex'], 'Female');
+    const dob = getColumnValue(row, ['Date of Birth', 'DOB', 'Birth Date'], '2004-01-01');
+    const parentName = getColumnValue(row, ['Parent Name', 'Father Name', 'Guardian Name'], 'Parent / Guardian');
+    const parentPhone = getColumnValue(row, ['Parent Phone', 'Father Mobile', 'Guardian Phone'], '');
+    const address = getColumnValue(row, ['Address', 'City', 'Location'], 'Tiruvannamalai, Tamil Nadu');
+
+    // 1. Mandatory Validations
+    if (!regNo) {
+      errors.push('Missing Register Number (Mandatory field)');
+    }
+    if (!name) {
+      errors.push('Missing Student Name (Mandatory field)');
+    }
+
+    // Auto-generate college email if missing
+    if (!email && regNo) {
+      const cleanReg = regNo.toLowerCase().replace(/[^a-z0-9]/g, '');
+      email = `${cleanReg}@kambancollege.edu.in`;
+      warnings.push(`Email was generated automatically: ${email}`);
+    }
+
+    // Duplicate Checks
     if (regNo && existingRegNumbers.has(regNo)) {
-      errors.push(`Duplicate: Register Number "${regNo}" already exists in database`);
-    }
-    if (email && existingEmails.has(email)) {
-      errors.push(`Duplicate: Email "${email}" already exists in database`);
-    }
-
-    // Duplicate Check - Within Current Upload Batch
-    if (regNo && seenInBatchRegs.has(regNo)) {
-      errors.push(`Duplicate in file: Register Number "${regNo}" appears multiple times`);
+      errors.push(`Duplicate: Register Number "${regNo}" already exists in the system.`);
+      duplicateCount++;
+    } else if (regNo && seenInBatchRegs.has(regNo)) {
+      errors.push(`Duplicate in file: Register Number "${regNo}" appears more than once.`);
+      duplicateCount++;
     } else if (regNo) {
       seenInBatchRegs.add(regNo);
     }
 
-    if (email && seenInBatchEmails.has(email)) {
-      errors.push(`Duplicate in file: Email "${email}" appears multiple times`);
+    if (email && existingEmails.has(email)) {
+      errors.push(`Duplicate: Email "${email}" already registered with another student.`);
+      duplicateCount++;
+    } else if (email && seenInBatchEmails.has(email)) {
+      errors.push(`Duplicate in file: Email "${email}" appears multiple times.`);
+      duplicateCount++;
     } else if (email) {
       seenInBatchEmails.add(email);
     }
 
-    // Foreign Key Reference Checks
-    const matchedDept = deptMap.get(deptCode);
-    if (deptCode && !matchedDept) {
-      errors.push(`Invalid Department Code: "${deptCode}" not found in system`);
+    // Parse Year & Semester
+    const year = standardizeYear(rawYear || rawClassSection);
+    const semester = standardizeSemester('', year);
+
+    // Extract Section (e.g. from "III B.Sc CS - A" -> "A")
+    let section = 'A';
+    if (rawClassSection) {
+      const secMatch = rawClassSection.match(/\b([A-D])\b/i) || rawClassSection.match(/[-_/\s]([A-D])$/i);
+      if (secMatch) section = secMatch[1].toUpperCase();
     }
 
-    const matchedCourse = courseMap.get(courseCode);
-    if (courseCode && !matchedCourse) {
-      errors.push(`Invalid Course Code: "${courseCode}" not found in system`);
+    // Match or resolve Department
+    let matchedDept = null;
+    if (rawDept) {
+      const upperDept = rawDept.toUpperCase().trim();
+      const lowerDept = rawDept.toLowerCase().trim();
+      matchedDept = deptCodeMap.get(upperDept) || deptNameMap.get(lowerDept);
+      
+      // Fuzzy department search
+      if (!matchedDept) {
+        for (const [code, d] of deptCodeMap.entries()) {
+          if (upperDept.includes(code) || d.name.toLowerCase().includes(lowerDept)) {
+            matchedDept = d;
+            break;
+          }
+        }
+      }
+    }
+    // Fallback default department if needed
+    if (!matchedDept && departments.length > 0) {
+      matchedDept = departments[0]; // Computer Science
+      if (rawDept) {
+        warnings.push(`Department "${rawDept}" mapped to default: ${matchedDept.name}`);
+      }
+    }
+
+    // Match or resolve Course
+    let matchedCourse = null;
+    if (matchedDept) {
+      matchedCourse = courses.find((c) => String(c.department) === String(matchedDept._id)) || courses[0];
+    } else if (courses.length > 0) {
+      matchedCourse = courses[0];
+    }
+
+    // Match Mentor if provided
+    let matchedMentor = null;
+    if (mentorName) {
+      matchedMentor = facultyMap.get(mentorName.toLowerCase().trim()) || null;
+    }
+
+    // Parse Attendance numeric percentage (e.g. "92%", "85.5", "90" -> 92)
+    let attendancePercentage = 85;
+    if (rawAttendance) {
+      const numMatch = String(rawAttendance).match(/[\d.]+/);
+      if (numMatch) {
+        const parsedNum = parseFloat(numMatch[0]);
+        if (!isNaN(parsedNum)) {
+          attendancePercentage = Math.min(100, Math.max(0, parsedNum));
+        }
+      }
+    }
+
+    // Parse Marks numeric percentage (e.g. "88%", "75.4", "8.5 CGPA" -> 85)
+    let marksPercentage = 75;
+    if (rawMarks) {
+      const numMatch = String(rawMarks).match(/[\d.]+/);
+      if (numMatch) {
+        let parsedNum = parseFloat(numMatch[0]);
+        if (!isNaN(parsedNum)) {
+          if (parsedNum <= 10 && String(rawMarks).toLowerCase().includes('cgpa')) {
+            parsedNum = parsedNum * 9.5; // CGPA to % conversion
+          }
+          marksPercentage = Math.min(100, Math.max(0, parsedNum));
+        }
+      }
+    }
+
+    // Parse Skills, Achievements, Activities lists
+    const skillsList = rawSkills
+      ? rawSkills.split(/[,;\n|]/).map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    const achievementsList = rawAchievements
+      ? rawAchievements.split(/[,;\n|]/).map((a) => a.trim()).filter(Boolean)
+      : [];
+
+    const activitiesList = rawActivities
+      ? rawActivities.split(/[,;\n|]/).map((ac) => ac.trim()).filter(Boolean)
+      : [];
+
+    // Construct talent array
+    const talents = [];
+    skillsList.forEach((sk) => {
+      talents.push({
+        category: 'Coding',
+        skillName: sk,
+        proficiency: 'Advanced',
+        achievements: achievementsList[0] || 'Proficient in application development',
+      });
+    });
+
+    if (achievementsList.length > 0) {
+      talents.push({
+        category: 'Sports',
+        skillName: 'Extracurricular & Merit Achievement',
+        proficiency: 'Advanced',
+        achievements: achievementsList.join('; '),
+      });
+    }
+
+    if (activitiesList.length > 0) {
+      talents.push({
+        category: 'Leadership',
+        skillName: activitiesList[0],
+        proficiency: 'Intermediate',
+        achievements: activitiesList.join('; '),
+      });
     }
 
     const processedData = {
-      studentId: `STU-${regNo || Math.floor(1000 + Math.random() * 9000)}`,
+      studentId: `STU-${regNo}`,
       registerNumber: regNo,
-      rollNumber: rollNo,
+      rollNumber: regNo,
       name,
       dob,
       gender,
       email,
-      phone,
+      phone: phone || '+91 98765 00000',
       address,
-      department: matchedDept ? matchedDept._id : null,
-      departmentCode: deptCode,
-      course: matchedCourse ? matchedCourse._id : null,
-      courseCode,
+      department: matchedDept ? matchedDept._id : (departments[0] ? departments[0]._id : null),
+      departmentName: matchedDept ? matchedDept.name : (rawDept || 'Computer Science'),
+      departmentCode: matchedDept ? matchedDept.code : 'CS',
+      course: matchedCourse ? matchedCourse._id : (courses[0] ? courses[0]._id : null),
+      courseName: matchedCourse ? matchedCourse.courseName : 'B.Sc. Computer Science',
       year,
       semester,
       section,
       parentName,
       parentPhone,
+      mentor: matchedMentor ? matchedMentor._id : null,
+      mentorName: mentorName || (matchedMentor ? matchedMentor.name : ''),
+      initialAttendance: attendancePercentage,
+      initialMarks: marksPercentage,
+      skills: skillsList,
+      achievements: achievementsList,
+      activities: activitiesList,
+      talents,
       status: 'Active',
+      warnings,
     };
 
     if (errors.length > 0) {
@@ -240,11 +451,13 @@ async function validateAndParseStudentExcel(fileBuffer) {
         data: processedData,
         raw: row,
         errors,
+        warnings,
       });
     } else {
       validRecords.push({
         rowNumber: rowNum,
         data: processedData,
+        warnings,
       });
     }
   }
@@ -253,243 +466,7 @@ async function validateAndParseStudentExcel(fileBuffer) {
     totalRows: rawRows.length,
     validCount: validRecords.length,
     errorCount: errorRecords.length,
-    validRecords,
-    errorRecords,
-  };
-}
-
-/**
- * Parse & Validate Faculty Excel Sheet
- */
-async function validateAndParseFacultyExcel(fileBuffer) {
-  const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-  const sheetName = workbook.SheetNames[0];
-  const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
-
-  if (!rawRows || rawRows.length === 0) {
-    throw new Error('The uploaded Excel sheet contains no data rows.');
-  }
-
-  const [departments, existingFaculty] = await Promise.all([
-    Department.find({}, 'code _id name'),
-    Faculty.find({}, 'employeeId email'),
-  ]);
-
-  const deptMap = new Map();
-  departments.forEach((d) => deptMap.set(d.code.toUpperCase(), d));
-
-  const existingEmpIds = new Set(existingFaculty.map((f) => f.employeeId.toUpperCase()));
-  const existingEmails = new Set(existingFaculty.map((f) => f.email.toLowerCase()));
-
-  const seenInBatchEmpIds = new Set();
-  const seenInBatchEmails = new Set();
-
-  const validRecords = [];
-  const errorRecords = [];
-
-  for (let i = 0; i < rawRows.length; i++) {
-    const rowNum = i + 2;
-    const row = rawRows[i];
-    const errors = [];
-
-    const empId = String(row['Employee ID'] || row['employeeId'] || '').trim().toUpperCase();
-    const name = String(row['Faculty Name'] || row['name'] || '').trim();
-    const qualification = String(row['Qualification'] || row['qualification'] || '').trim();
-    const designation = String(row['Designation'] || row['designation'] || 'Assistant Professor').trim();
-    const deptCode = String(row['Department Code'] || row['departmentCode'] || '').trim().toUpperCase();
-    const email = String(row['Email'] || row['email'] || '').trim().toLowerCase();
-    const phone = String(row['Phone'] || row['phone'] || '').trim();
-    const experience = String(row['Experience'] || row['experience'] || '1 Year').trim();
-    const specialization = String(row['Specialization'] || row['specialization'] || 'General').trim();
-
-    if (!empId) errors.push('Employee ID is required');
-    if (!name) errors.push('Faculty Name is required');
-    if (!qualification) errors.push('Qualification is required');
-    if (!deptCode) errors.push('Department Code is required');
-    if (!email) errors.push('Email is required');
-    if (!phone) errors.push('Phone is required');
-
-    if (empId && existingEmpIds.has(empId)) {
-      errors.push(`Duplicate: Employee ID "${empId}" already exists in database`);
-    }
-    if (email && existingEmails.has(email)) {
-      errors.push(`Duplicate: Email "${email}" already exists in database`);
-    }
-
-    if (empId && seenInBatchEmpIds.has(empId)) {
-      errors.push(`Duplicate in file: Employee ID "${empId}" appears multiple times`);
-    } else if (empId) {
-      seenInBatchEmpIds.add(empId);
-    }
-
-    if (email && seenInBatchEmails.has(email)) {
-      errors.push(`Duplicate in file: Email "${email}" appears multiple times`);
-    } else if (email) {
-      seenInBatchEmails.add(email);
-    }
-
-    const matchedDept = deptMap.get(deptCode);
-    if (deptCode && !matchedDept) {
-      errors.push(`Invalid Department Code: "${deptCode}" not found`);
-    }
-
-    const processedData = {
-      facultyId: `FAC-${empId || Math.floor(1000 + Math.random() * 9000)}`,
-      employeeId: empId,
-      name,
-      qualification,
-      designation,
-      department: matchedDept ? matchedDept._id : null,
-      departmentCode: deptCode,
-      email,
-      phone,
-      experience,
-      specialization,
-      status: 'Active',
-    };
-
-    if (errors.length > 0) {
-      errorRecords.push({
-        rowNumber: rowNum,
-        data: processedData,
-        raw: row,
-        errors,
-      });
-    } else {
-      validRecords.push({
-        rowNumber: rowNum,
-        data: processedData,
-      });
-    }
-  }
-
-  return {
-    totalRows: rawRows.length,
-    validCount: validRecords.length,
-    errorCount: errorRecords.length,
-    validRecords,
-    errorRecords,
-  };
-}
-
-/**
- * Parse & Validate Marks Excel Sheet
- */
-async function validateAndParseMarksExcel(fileBuffer) {
-  const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-  const sheetName = workbook.SheetNames[0];
-  const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
-
-  if (!rawRows || rawRows.length === 0) {
-    throw new Error('The uploaded Excel sheet contains no data rows.');
-  }
-
-  const [students, subjects] = await Promise.all([
-    Student.find({}, 'registerNumber name department course'),
-    Subject.find({}, 'subjectCode subjectName course department semester'),
-  ]);
-
-  const studentMap = new Map();
-  students.forEach((s) => studentMap.set(s.registerNumber.toUpperCase(), s));
-
-  const subjectMap = new Map();
-  subjects.forEach((sub) => subjectMap.set(sub.subjectCode.toUpperCase(), sub));
-
-  const validRecords = [];
-  const errorRecords = [];
-  const seenMarks = new Set();
-
-  for (let i = 0; i < rawRows.length; i++) {
-    const rowNum = i + 2;
-    const row = rawRows[i];
-    const errors = [];
-
-    const regNo = String(row['Register Number'] || row['registerNumber'] || '').trim().toUpperCase();
-    const subjectCode = String(row['Subject Code'] || row['subjectCode'] || '').trim().toUpperCase();
-    const semester = String(row['Semester'] || row['semester'] || 'Semester 1').trim();
-    const rawInternal = row['Internal Mark (Max 25)'] !== undefined ? row['Internal Mark (Max 25)'] : row['internalMark'];
-    const rawExternal = row['External Mark (Max 75)'] !== undefined ? row['External Mark (Max 75)'] : row['externalMark'];
-
-    const internalMark = Number(rawInternal);
-    const externalMark = Number(rawExternal);
-
-    if (!regNo) errors.push('Register Number is required');
-    if (!subjectCode) errors.push('Subject Code is required');
-
-    if (isNaN(internalMark) || internalMark < 0 || internalMark > 25) {
-      errors.push('Internal Mark must be a valid number between 0 and 25');
-    }
-
-    if (isNaN(externalMark) || externalMark < 0 || externalMark > 75) {
-      errors.push('External Mark must be a valid number between 0 and 75');
-    }
-
-    const matchedStudent = studentMap.get(regNo);
-    if (regNo && !matchedStudent) {
-      errors.push(`Student with Register Number "${regNo}" not found`);
-    }
-
-    const matchedSubject = subjectMap.get(subjectCode);
-    if (subjectCode && !matchedSubject) {
-      errors.push(`Subject with Code "${subjectCode}" not found`);
-    }
-
-    const markKey = `${regNo}_${subjectCode}_${semester}`;
-    if (seenMarks.has(markKey)) {
-      errors.push(`Duplicate entry for ${regNo} in subject ${subjectCode} in this sheet`);
-    } else {
-      seenMarks.add(markKey);
-    }
-
-    const total = (isNaN(internalMark) ? 0 : internalMark) + (isNaN(externalMark) ? 0 : externalMark);
-    const isPassed = externalMark >= 30 && total >= 40;
-    let grade = 'RA';
-    if (isPassed) {
-      if (total >= 90) grade = 'O';
-      else if (total >= 80) grade = 'A+';
-      else if (total >= 70) grade = 'A';
-      else if (total >= 60) grade = 'B+';
-      else if (total >= 50) grade = 'B';
-      else grade = 'C';
-    }
-
-    const processedData = {
-      student: matchedStudent ? matchedStudent._id : null,
-      registerNumber: regNo,
-      studentName: matchedStudent ? matchedStudent.name : (row['Student Name'] || ''),
-      department: matchedStudent ? matchedStudent.department : null,
-      course: matchedStudent ? matchedStudent.course : null,
-      semester,
-      subject: matchedSubject ? matchedSubject._id : null,
-      subjectCode,
-      subjectName: matchedSubject ? matchedSubject.subjectName : '',
-      internalMark,
-      externalMark,
-      totalMark: total,
-      percentage: total,
-      grade,
-      resultStatus: isPassed ? 'Pass' : 'Fail',
-    };
-
-    if (errors.length > 0) {
-      errorRecords.push({
-        rowNumber: rowNum,
-        data: processedData,
-        raw: row,
-        errors,
-      });
-    } else {
-      validRecords.push({
-        rowNumber: rowNum,
-        data: processedData,
-      });
-    }
-  }
-
-  return {
-    totalRows: rawRows.length,
-    validCount: validRecords.length,
-    errorCount: errorRecords.length,
+    duplicateCount,
     validRecords,
     errorRecords,
   };
@@ -500,6 +477,4 @@ module.exports = {
   generateFacultyTemplate,
   generateMarksTemplate,
   validateAndParseStudentExcel,
-  validateAndParseFacultyExcel,
-  validateAndParseMarksExcel,
 };

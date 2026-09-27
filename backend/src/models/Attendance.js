@@ -20,6 +20,41 @@ const attendanceRecordSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    isGeoVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationMethod: {
+      type: String,
+      enum: ['GPS_CAMPUS', 'MANUAL_FACULTY', 'DAILY_SELF_REQUEST', 'OVERRIDE'],
+      default: 'MANUAL_FACULTY',
+    },
+    geoCoordinates: {
+      latitude: Number,
+      longitude: Number,
+      distanceMeters: Number,
+    },
+    isOverridden: {
+      type: Boolean,
+      default: false,
+    },
+    originalStatus: {
+      type: String,
+      default: '',
+    },
+    overrideReason: {
+      type: String,
+      default: '',
+    },
+    overriddenBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    overriddenAt: {
+      type: Date,
+      default: null,
+    },
   },
   { _id: false }
 );

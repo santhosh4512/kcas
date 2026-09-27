@@ -87,6 +87,12 @@ app.use('/api/staff', require('./routes/staffRoutes'));
 app.use('/api/admins', require('./routes/adminManagementRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
 app.use('/api/audit-logs', require('./routes/auditLogRoutes'));
+app.use('/api/notices', require('./routes/noticeRoutes'));
+app.use('/api/events', require('./routes/eventRoutes'));
+app.use('/api/certificates', require('./routes/certificateRoutes'));
+app.use('/api/warnings', require('./routes/warningRoutes'));
+app.use('/api/mentor', require('./routes/mentorRoutes'));
+app.use('/api/ai-advisor', require('./routes/aiAdvisorRoutes'));
 
 // Centralized error handling
 app.use(errorHandler);

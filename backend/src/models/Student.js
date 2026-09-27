@@ -18,9 +18,9 @@ const studentSchema = new mongoose.Schema(
     },
     rollNumber: {
       type: String,
-      required: [true, 'Roll number is required'],
       trim: true,
       uppercase: true,
+      default: '',
     },
     name: {
       type: String,
@@ -34,7 +34,6 @@ const studentSchema = new mongoose.Schema(
     gender: {
       type: String,
       default: 'Female',
-      enum: ['Female', 'Male', 'Other'],
     },
     email: {
       type: String,
@@ -45,7 +44,7 @@ const studentSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      required: [true, 'Phone number is required'],
+      default: '',
       trim: true,
     },
     address: {
@@ -65,18 +64,14 @@ const studentSchema = new mongoose.Schema(
     year: {
       type: String,
       required: [true, 'Year is required'],
-      enum: ['I Year', 'II Year', 'III Year', 'IV Year'],
       default: 'I Year',
     },
     semester: {
       type: String,
-      required: [true, 'Semester is required'],
-      enum: ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6', 'Semester 7', 'Semester 8'],
       default: 'Semester 1',
     },
     section: {
       type: String,
-      enum: ['A', 'B', 'C', 'D'],
       default: 'A',
     },
     admissionYear: {
@@ -99,6 +94,43 @@ const studentSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    mentor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Faculty',
+      default: null,
+    },
+    mentorName: {
+      type: String,
+      default: '',
+    },
+    initialAttendance: {
+      type: Number,
+      default: 85,
+    },
+    initialMarks: {
+      type: Number,
+      default: 75,
+    },
+    skills: {
+      type: [String],
+      default: [],
+    },
+    achievements: {
+      type: [String],
+      default: [],
+    },
+    activities: {
+      type: [String],
+      default: [],
+    },
+    talents: [
+      {
+        category: String, // 'Sports', 'Coding', 'Cultural', 'Communication', 'Leadership', 'Extracurricular'
+        skillName: String,
+        proficiency: String, // 'Beginner', 'Intermediate', 'Advanced', 'Expert'
+        achievements: String,
+      },
+    ],
     status: {
       type: String,
       enum: ['Active', 'Graduated', 'Discontinued', 'Suspended'],
@@ -110,6 +142,7 @@ const studentSchema = new mongoose.Schema(
   }
 );
 
-studentSchema.index({ registerNumber: 1, rollNumber: 1, department: 1, year: 1, section: 1 });
+studentSchema.index({ registerNumber: 1, department: 1, year: 1, section: 1 });
 
 module.exports = mongoose.model('Student', studentSchema);
+

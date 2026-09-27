@@ -16,21 +16,29 @@ const connectDB = async () => {
   const isAtlas = connectionUri.includes('mongodb+srv://') || connectionUri.includes('mongodb.net');
 
   try {
-    if (isAtlas || isProduction || mongoUri) {
-      console.log(`🌐 Connecting to MongoDB Atlas...`);
-      await mongoose.connect(connectionUri, {
-        dbName: 'kcas_department_db',
-        serverSelectionTimeoutMS: 15000,
-        socketTimeoutMS: 45000,
-      });
+    if (mongoUri) {
+      console.log(`🌐 Connecting to MongoDB...`);
+      try {
+        await mongoose.connect(mongoUri, {
+          dbName: 'kcas_department_db',
+          serverSelectionTimeoutMS: 5000,
+          socketTimeoutMS: 45000,
+        });
 
-      const activeDbName = mongoose.connection.db ? mongoose.connection.db.databaseName : 'kcas_department_db';
-      console.log(`✅ MongoDB Atlas connected successfully.`);
-      console.log(`🗄️  Database: ${activeDbName}`);
-      return;
+        const activeDbName = mongoose.connection.db ? mongoose.connection.db.databaseName : 'kcas_department_db';
+        console.log(`✅ MongoDB connected successfully.`);
+        console.log(`🗄️  Database: ${activeDbName}`);
+        return;
+      } catch (uriError) {
+        if (isProduction) {
+          throw uriError;
+        }
+        console.warn(`⚠️  Failed to connect to configured MONGODB_URI: ${uriError.message}`);
+        console.log(`ℹ️ Falling back to development database...`);
+      }
     }
 
-    // Local development fallback (only when no MONGODB_URI is configured in development)
+    // Local development fallback
     try {
       await mongoose.connect(connectionUri, {
         dbName: 'kcas_department_db',
