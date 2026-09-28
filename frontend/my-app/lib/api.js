@@ -1,35 +1,44 @@
 import axios from 'axios';
 
-let API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-if (!API_BASE_URL) {
+export function getEffectiveApiUrl() {
   if (typeof window !== 'undefined') {
-    // If running in browser on a deployed host (e.g. Vercel, custom domain)
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      API_BASE_URL = '/api';
-    } else {
-      API_BASE_URL = 'http://localhost:5001/api';
+    const customUrl = localStorage.getItem('kcas_backend_url');
+    if (customUrl) {
+      return customUrl.replace(/\/+$/, '');
     }
-  } else {
-    API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5001/api';
   }
+
+  let base = process.env.NEXT_PUBLIC_API_URL;
+  if (!base) {
+    if (typeof window !== 'undefined') {
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        base = '/api';
+      } else {
+        base = 'http://localhost:5001/api';
+      }
+    } else {
+      base = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5001/api';
+    }
+  }
+
+  return base.replace(/\/+$/, '');
 }
 
-// Clean up trailing slashes
-API_BASE_URL = API_BASE_URL.replace(/\/+$/, '');
+let API_BASE_URL = getEffectiveApiUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
+  timeout: 60000, // 60s timeout to allow Render free tier wake-up
 });
 
-// Request interceptor to attach JWT
+// Request interceptor to attach JWT & dynamic baseURL
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
+      config.baseURL = getEffectiveApiUrl();
       const token = localStorage.getItem('kcas_auth_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -61,3 +70,4 @@ api.interceptors.response.use(
 
 export default api;
 export { API_BASE_URL };
+

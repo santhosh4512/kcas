@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/AuthContext';
 import { useNotification } from '../../lib/NotificationContext';
-import api from '../../lib/api';
+import api, { getEffectiveApiUrl } from '../../lib/api';
 import Modal from '../../components/ui/Modal';
 import {
   Lock,
@@ -22,17 +22,44 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  Settings,
+  Server,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingTime, setLoadingTime] = useState(0);
   const [formError, setFormError] = useState('');
+
+  // Backend URL Config Modal State
+  const [configOpen, setConfigOpen] = useState(false);
+  const [currentApiUrl, setCurrentApiUrl] = useState('');
+  const [customApiUrlInput, setCustomApiUrlInput] = useState('');
 
   // Login Form
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    const url = getEffectiveApiUrl();
+    setCurrentApiUrl(url);
+    setCustomApiUrlInput(url);
+  }, []);
+
+  useEffect(() => {
+    let timer;
+    if (loading) {
+      timer = setInterval(() => {
+        setLoadingTime((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setLoadingTime(0);
+    }
+    return () => clearInterval(timer);
+  }, [loading]);
 
   // Register Form (Student Public Only)
   const [regName, setRegName] = useState('');
@@ -357,7 +384,11 @@ export default function LoginPage() {
                 {loading ? (
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>Signing in...</span>
+                    <span>
+                      {loadingTime > 4
+                        ? `Waking up cloud server (${loadingTime}s)...`
+                        : 'Signing in...'}
+                    </span>
                   </div>
                 ) : (
                   <>
@@ -509,16 +540,151 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* Back Link */}
-        <div className="mt-6 text-center">
+        {/* Back Link & Server Status */}
+        <div className="mt-6 flex items-center justify-between text-xs font-semibold text-slate-400">
           <Link
             href="/"
-            className="text-xs font-semibold text-slate-400 hover:text-white transition"
+            className="hover:text-white transition flex items-center gap-1"
           >
-            ← Return to KCAS Home Page
+            ← Return to KCAS Home
           </Link>
+
+          <button
+            type="button"
+            onClick={() => setConfigOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-slate-200 border border-white/10 transition text-[11px]"
+            title="Configure Backend API Server URL"
+          >
+            <Server className="h-3 w-3 text-emerald-400" />
+            <span>API Server</span>
+          </button>
         </div>
       </div>
+
+      {/* BACKEND API CONFIGURATION MODAL */}
+      <Modal
+        isOpen={configOpen}
+        onClose={() => setConfigOpen(false)}
+        title="🌐 Backend API Server Settings"
+        subtitle="Configure the connected API server for Render, Vercel, or Localhost."
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-4 text-xs text-slate-700">
+          <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900">
+            <p className="font-bold flex items-center gap-1.5 text-blue-950">
+              <Server className="h-4 w-4 text-blue-600 shrink-0" />
+              Connected Backend URL
+            </p>
+            <p className="mt-1 text-[11px] text-blue-800 break-all">
+              Current: <code className="bg-blue-100 px-1 py-0.5 rounded font-mono text-[10px]">{currentApiUrl || 'Default'}</code>
+            </p>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">
+              Custom Backend API Endpoint URL
+            </label>
+            <input
+              type="url"
+              value={customApiUrlInput}
+              onChange={(e) => setCustomApiUrlInput(e.target.value)}
+              placeholder="https://your-app.onrender.com/api"
+              className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-800 focus:outline-hidden font-mono"
+            />
+            <p className="text-[10px] text-slate-500 mt-1">
+              Example: <code>https://kcas-backend.onrender.com/api</code>
+            </p>
+          </div>
+
+          {testResult && (
+            <div
+              className={`p-3 rounded-xl text-xs flex items-center gap-2 border ${
+                testResult.success
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : 'bg-rose-50 text-rose-800 border-rose-200'
+              }`}
+            >
+              {testResult.success ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              )}
+              <span>{testResult.message}</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              disabled={testingConnection}
+              onClick={async () => {
+                setTestingConnection(true);
+                setTestResult(null);
+                try {
+                  const targetUrl = customApiUrlInput.trim().replace(/\/+$/, '');
+                  const testRes = await fetch(`${targetUrl}/health`);
+                  const data = await testRes.json();
+                  if (data && data.success) {
+                    setTestResult({
+                      success: true,
+                      message: `Connected! (${data.institution || 'KCAS Backend'})`,
+                    });
+                  } else {
+                    setTestResult({
+                      success: false,
+                      message: 'Server responded but failed health check.',
+                    });
+                  }
+                } catch (err) {
+                  setTestResult({
+                    success: false,
+                    message: 'Cannot reach server. If using Render, wait 45s for wake-up.',
+                  });
+                } finally {
+                  setTestingConnection(false);
+                }
+              }}
+              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${testingConnection ? 'animate-spin' : ''}`} />
+              {testingConnection ? 'Testing...' : 'Test Connection'}
+            </button>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem('kcas_backend_url');
+                  const defaultUrl = getEffectiveApiUrl();
+                  setCurrentApiUrl(defaultUrl);
+                  setCustomApiUrlInput(defaultUrl);
+                  setTestResult(null);
+                  success('Reset to default API URL');
+                  setConfigOpen(false);
+                }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition"
+              >
+                Reset Default
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const cleanUrl = customApiUrlInput.trim().replace(/\/+$/, '');
+                  if (cleanUrl) {
+                    localStorage.setItem('kcas_backend_url', cleanUrl);
+                    setCurrentApiUrl(cleanUrl);
+                    success('Backend URL saved!');
+                    setConfigOpen(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-[#701A28] hover:bg-[#58111A] text-white font-bold text-xs transition shadow-xs"
+              >
+                Save URL
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {/* MANDATORY FIRST-LOGIN PASSWORD RESET MODAL */}
       <Modal
