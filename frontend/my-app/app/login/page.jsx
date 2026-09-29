@@ -38,6 +38,8 @@ export default function LoginPage() {
   const [configOpen, setConfigOpen] = useState(false);
   const [currentApiUrl, setCurrentApiUrl] = useState('');
   const [customApiUrlInput, setCustomApiUrlInput] = useState('');
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
   // Login Form
   const [email, setEmail] = useState('');

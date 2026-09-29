@@ -9,39 +9,8 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// Allowed Origins for Production & Development
-const allowedOrigins = [
-  'https://kcas-h17twkmqk-jvl2.vercel.app',
-  process.env.FRONTEND_URL,
-  process.env.CLIENT_URL,
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost:5001',
-  'http://127.0.0.1:5001',
-].filter(Boolean);
-
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow server-to-server, mobile webviews, or curl requests where origin is undefined
-    if (!origin) return callback(null, true);
-
-    // Check if origin matches allowed array
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    // Allow all *.vercel.app preview & production subdomains
-    if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
-      return callback(null, true);
-    }
-
-    // Fallback for development & preview
-    if (process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-
-    return callback(null, true); // Allow with credentials
-  },
+  origin: true, // Allow all incoming origins (Vercel, Render, local, custom domains)
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
@@ -52,6 +21,7 @@ const corsOptions = {
 // Enable CORS & preflight
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));

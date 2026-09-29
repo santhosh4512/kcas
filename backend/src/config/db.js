@@ -4,17 +4,16 @@ const mongoose = require('mongoose');
  * Connect to MongoDB Atlas or configured database instance
  */
 const connectDB = async () => {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const mongoUri = process.env.MONGODB_URI;
+  const mongoUri =
+    process.env.MONGODB_URI ||
+    process.env.MONGO_URI ||
+    process.env.DATABASE_URL ||
+    'mongodb+srv://santhosh:santhosh01@cluster0.wqvhoss.mongodb.net/kcas_department_db?appName=Cluster0';
 
-  if (isProduction && !mongoUri) {
-    console.error('❌ FATAL: MONGODB_URI is required in production environment.');
-    process.exit(1);
-  }
-
-  const connectionUri = mongoUri || 'mongodb://127.0.0.1:27017/kcas_department_db';
+  const connectionUri = mongoUri;
   const isAtlas = connectionUri.includes('mongodb+srv://') || connectionUri.includes('mongodb.net');
 
+  const isProduction = process.env.NODE_ENV === 'production';
   try {
     if (mongoUri) {
       console.log(`🌐 Connecting to MongoDB...`);
@@ -30,11 +29,8 @@ const connectDB = async () => {
         console.log(`🗄️  Database: ${activeDbName}`);
         return;
       } catch (uriError) {
-        if (isProduction) {
-          throw uriError;
-        }
-        console.warn(`⚠️  Failed to connect to configured MONGODB_URI: ${uriError.message}`);
-        console.log(`ℹ️ Falling back to development database...`);
+        console.warn(`⚠️  Configured MONGODB_URI connection issue: ${uriError.message}`);
+        console.log(`ℹ️ Falling back to local/in-memory database...`);
       }
     }
 

