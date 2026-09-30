@@ -17,6 +17,7 @@ import {
   Award,
   Sparkles,
   BarChart3,
+  MapPin,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -40,9 +41,12 @@ export default function ReportsPage() {
     { id: 'students', label: 'Student Directory Report', icon: GraduationCap },
     { id: 'faculty', label: 'Faculty Directory Report', icon: Users },
     { id: 'attendance', label: 'Attendance & Shortage Report', icon: CalendarCheck },
+    { id: 'gps-alerts', label: 'GPS Location Alerts Audit Report', icon: MapPin },
     { id: 'marks', label: 'Semester Examination Marks Report', icon: Award },
     { id: 'talent', label: 'Student Talent Intelligence Report', icon: Sparkles },
-    { id: 'department-talent', label: 'Department Talent Distribution Report', icon: BarChart3 },
+    { id: 'certificates', label: 'Verified Certificates Report', icon: FileText },
+    { id: 'early-warnings', label: 'Early Warning Radar Report', icon: FileText },
+    { id: 'events', label: 'Events & Workshops Report', icon: BarChart3 },
   ];
 
   useEffect(() => {

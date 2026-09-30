@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Menu, ExternalLink, ShieldCheck, Search, Sparkles, Command } from 'lucide-react';
+import { Menu, ExternalLink, ShieldCheck, Search, Sparkles, Command, AlertTriangle, Bell } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { API_BASE_URL } from '../../lib/api';
+import api from '../../lib/api';
 import Link from 'next/link';
 import CommandPalette from '../ui/CommandPalette';
 
@@ -11,6 +12,7 @@ export default function Header({ setMobileOpen, title, subtitle }) {
   const { user } = useAuth();
   const [timeStr, setTimeStr] = useState('');
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  const [unreadAlerts, setUnreadAlerts] = useState(0);
   const serverBase = (API_BASE_URL || '').replace(/\/api\/?$/, '');
 
   useEffect(() => {
@@ -30,6 +32,25 @@ export default function Header({ setMobileOpen, title, subtitle }) {
     const interval = setInterval(updateTime, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!user || user.role === 'student') return;
+
+    const fetchAlertCount = async () => {
+      try {
+        const res = await api.get('/location-alerts?status=Unread&limit=1');
+        if (res.data.success && res.data.summary) {
+          setUnreadAlerts(res.data.summary.unread || 0);
+        }
+      } catch (err) {
+        // quiet catch
+      }
+    };
+
+    fetchAlertCount();
+    const alertInterval = setInterval(fetchAlertCount, 30000);
+    return () => clearInterval(alertInterval);
+  }, [user]);
 
   return (
     <>
@@ -75,6 +96,22 @@ export default function Header({ setMobileOpen, title, subtitle }) {
               <Command className="h-2.5 w-2.5" /> K
             </kbd>
           </button>
+
+          {/* GPS Location Alerts Quick Trigger for Faculty/Admin */}
+          {user?.role !== 'student' && (
+            <Link
+              href="/location-alerts"
+              className="relative flex items-center justify-center h-9 w-9 rounded-xl border border-[#D4AF37]/40 bg-slate-900/80 text-[#F3E5AB] hover:bg-slate-800 transition"
+              title="GPS Location Alerts"
+            >
+              <AlertTriangle className="h-4 w-4 text-[#D4AF37]" />
+              {unreadAlerts > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white shadow-lg animate-pulse">
+                  {unreadAlerts > 9 ? '9+' : unreadAlerts}
+                </span>
+              )}
+            </Link>
+          )}
 
           {/* Live Date/Time Capsule */}
           {timeStr && (

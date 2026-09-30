@@ -63,6 +63,10 @@ app.use('/api/certificates', require('./routes/certificateRoutes'));
 app.use('/api/warnings', require('./routes/warningRoutes'));
 app.use('/api/mentor', require('./routes/mentorRoutes'));
 app.use('/api/ai-advisor', require('./routes/aiAdvisorRoutes'));
+app.use('/api/location-alerts', require('./routes/locationAlertRoutes'));
+app.use('/api/settings', require('./routes/systemSettingRoutes'));
+app.use('/api/backup', require('./routes/backupRoutes'));
+app.use('/api/faculty-workload', require('./routes/facultyWorkloadRoutes'));
 
 // Centralized error handling
 app.use(errorHandler);

@@ -347,6 +347,78 @@ exports.getReportData = async (req, res, next) => {
         }));
         break;
 
+      case 'gps-alerts':
+      case 'location-alerts':
+        reportTitle = 'KCAS - GPS Geofence Location Alerts Audit Report';
+        headers = ['Register No', 'Student Name', 'Department', 'Distance (km)', 'Allowed Radius (m)', 'Assigned Faculty', 'Date', 'Time', 'Severity', 'Status'];
+        const LocationAlert = require('../models/LocationAlert');
+        const alertDocs = await LocationAlert.find(filter)
+          .populate('department', 'name code')
+          .sort({ createdAt: -1 });
+        results = alertDocs.map((a) => ({
+          registerNumber: a.registerNumber,
+          name: a.studentName,
+          department: a.department ? a.department.name : '',
+          distanceKm: (a.distanceFromCampusMeters / 1000).toFixed(2),
+          allowedRadiusMeters: a.allowedRadiusMeters,
+          assignedFaculty: a.facultyName,
+          date: a.date,
+          time: a.time,
+          severity: a.severity,
+          status: a.status,
+        }));
+        break;
+
+      case 'certificates':
+        reportTitle = 'KCAS - Verified Student Accreditations & Certificates Report';
+        headers = ['Register No', 'Student Name', 'Certificate Title', 'Category', 'Issuing Body', 'Issued Date', 'Verification Status'];
+        const certDocs = await Certificate.find(filter)
+          .populate('student', 'name registerNumber')
+          .sort({ createdAt: -1 });
+        results = certDocs.map((c) => ({
+          registerNumber: c.student?.registerNumber || 'N/A',
+          name: c.student?.name || 'Student',
+          title: c.title,
+          category: c.category,
+          issuer: c.issuer,
+          issueDate: c.issueDate,
+          verificationStatus: c.verificationStatus,
+        }));
+        break;
+
+      case 'warnings':
+      case 'early-warnings':
+        reportTitle = 'KCAS - Student Early Warning & Performance Radar Report';
+        headers = ['Register No', 'Student Name', 'Alert Type', 'Severity', 'Attendance %', 'Current GPA', 'Reason', 'Status'];
+        const warnDocs = await WarningAlert.find(filter)
+          .populate('student', 'name registerNumber')
+          .sort({ createdAt: -1 });
+        results = warnDocs.map((w) => ({
+          registerNumber: w.registerNumber || w.student?.registerNumber || 'N/A',
+          name: w.studentName || w.student?.name || 'Student',
+          alertType: w.alertType,
+          severity: w.severity,
+          attendancePercentage: `${w.attendancePercentage}%`,
+          currentGpa: w.currentGpa,
+          reason: w.reason,
+          status: w.status,
+        }));
+        break;
+
+      case 'events':
+        reportTitle = 'KCAS - Events & Workshops Participation Registry';
+        headers = ['Event Title', 'Event Type', 'Event Date', 'Venue', 'Participants Count', 'Status'];
+        const eventDocs = await Event.find().sort({ eventDate: -1 });
+        results = eventDocs.map((e) => ({
+          title: e.title,
+          type: e.type,
+          eventDate: e.eventDate,
+          venue: e.venue,
+          participantsCount: e.participants?.length || 0,
+          status: e.status,
+        }));
+        break;
+
       default:
         return res.status(400).json({ success: false, message: 'Invalid report type requested.' });
     }

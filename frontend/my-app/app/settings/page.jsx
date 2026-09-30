@@ -47,8 +47,57 @@ export default function SettingsPage() {
   const { success, error, warning } = useNotification();
   const isAdmin = user?.role === 'admin';
 
-  // Tabs: 'profile' | 'staff' | 'audit' | 'system'
+  // Tabs: 'profile' | 'staff' | 'gps' | 'audit' | 'system'
   const [activeTab, setActiveTab] = useState(isAdmin ? 'staff' : 'profile');
+
+  // GPS & System Config State (Admin)
+  const [systemConfig, setSystemConfig] = useState({
+    gpsEnabled: true,
+    campusLatitude: 12.1905865,
+    campusLongitude: 79.0837848,
+    campusRadiusMeters: 1000,
+    locationAlertsEnabled: true,
+    facultyNotificationEnabled: true,
+    attendanceWarningThreshold: 75,
+    academicWarningThreshold: 50,
+    earlyWarningsEnabled: true,
+    institutionName: 'KAMBAN COLLEGE OF ARTS AND SCIENCE FOR WOMEN',
+    institutionAddress: 'Thenmathur, Tiruvannamalai – 606 603',
+    institutionPhone: '04175 – 255401',
+    institutionCell: '9488029091',
+    institutionEmail: 'kcastvmalai@gmail.com',
+  });
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
+
+  const fetchSystemConfig = async () => {
+    setConfigLoading(true);
+    try {
+      const res = await api.get('/settings');
+      if (res.data.success && res.data.data) {
+        setSystemConfig(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error loading system config:', err);
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  const handleSaveSystemConfig = async (e) => {
+    e.preventDefault();
+    setConfigSaving(true);
+    try {
+      const res = await api.put('/settings', systemConfig);
+      if (res.data.success) {
+        success('GPS & Administrative Settings saved successfully.');
+      }
+    } catch (err) {
+      error(err.response?.data?.message || 'Failed to save settings.');
+    } finally {
+      setConfigSaving(false);
+    }
+  };
 
   // Profile Edit State
   const [profileForm, setProfileForm] = useState({
@@ -162,6 +211,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeTab === 'staff') fetchStaffData();
     if (activeTab === 'audit') fetchAuditLogs();
+    if (activeTab === 'gps' || activeTab === 'system') fetchSystemConfig();
   }, [activeTab]);
 
   // Handle Create Staff Submit
@@ -335,6 +385,19 @@ export default function SettingsPage() {
             Staff Account Management
           </button>
         )}
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('gps')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
+              activeTab === 'gps'
+                ? 'bg-[#701A28] text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            GPS & Geofence Settings
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('profile')}
           className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
@@ -495,6 +558,162 @@ export default function SettingsPage() {
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB: GPS & GEOFENCE SETTINGS (ADMIN ONLY)
+      ========================================================================= */}
+      {isAdmin && activeTab === 'gps' && (
+        <div className="space-y-6 max-w-4xl">
+          <form onSubmit={handleSaveSystemConfig} className="space-y-6">
+            {/* GPS Core Card */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#701A28]/10 text-[#701A28]">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm">Campus GPS & Geofencing Parameters</h3>
+                    <p className="text-xs text-slate-500">Configure institutional coordinates and verification radius</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={systemConfig.gpsEnabled}
+                      onChange={(e) => setSystemConfig({ ...systemConfig, gpsEnabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#701A28]"></div>
+                  </label>
+                  <span className="text-xs font-bold text-slate-700">{systemConfig.gpsEnabled ? 'GPS Active' : 'GPS Disabled'}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Campus Latitude *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={systemConfig.campusLatitude}
+                    onChange={(e) => setSystemConfig({ ...systemConfig, campusLatitude: parseFloat(e.target.value) })}
+                    className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 font-mono focus:border-[#701A28] focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400">Default: 12.1905865</span>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Campus Longitude *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={systemConfig.campusLongitude}
+                    onChange={(e) => setSystemConfig({ ...systemConfig, campusLongitude: parseFloat(e.target.value) })}
+                    className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 font-mono focus:border-[#701A28] focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400">Default: 79.0837848</span>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Allowed Campus Radius (Meters) *</label>
+                  <input
+                    type="number"
+                    min="50"
+                    max="10000"
+                    required
+                    value={systemConfig.campusRadiusMeters}
+                    onChange={(e) => setSystemConfig({ ...systemConfig, campusRadiusMeters: parseInt(e.target.value, 10) })}
+                    className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 font-bold focus:border-[#701A28] focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400">Default: 1000 meters (1 km)</span>
+                </div>
+              </div>
+
+              {/* Alert Triggers */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <h4 className="text-xs font-bold text-slate-800">Automated Geofence Alerts & Faculty Notifications</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={systemConfig.locationAlertsEnabled}
+                      onChange={(e) => setSystemConfig({ ...systemConfig, locationAlertsEnabled: e.target.checked })}
+                      className="rounded accent-[#701A28]"
+                    />
+                    <span className="font-semibold text-slate-700">Generate Location Alerts on Out-of-Campus Check-in</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={systemConfig.facultyNotificationEnabled}
+                      onChange={(e) => setSystemConfig({ ...systemConfig, facultyNotificationEnabled: e.target.checked })}
+                      className="rounded accent-[#701A28]"
+                    />
+                    <span className="font-semibold text-slate-700">Notify Assigned Faculty & Mentors Automatically</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning Thresholds Card */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+              <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-3">
+                Academic & Attendance Early Warning Thresholds
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Attendance Warning Threshold (%)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={systemConfig.attendanceWarningThreshold}
+                    onChange={(e) => setSystemConfig({ ...systemConfig, attendanceWarningThreshold: parseInt(e.target.value, 10) })}
+                    className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 font-bold focus:border-[#701A28] focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400">Students with attendance below this % are flagged on radar</span>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Academic Warning Minimum (%)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={systemConfig.academicWarningThreshold}
+                    onChange={(e) => setSystemConfig({ ...systemConfig, academicWarningThreshold: parseInt(e.target.value, 10) })}
+                    className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 font-bold focus:border-[#701A28] focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400">Scores below this minimum trigger academic risk warning</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={configSaving}
+                className="flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-[#701A28] hover:bg-[#58111A] rounded-xl transition shadow-xs disabled:opacity-60"
+              >
+                {configSaving ? (
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Save Configuration Parameters
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

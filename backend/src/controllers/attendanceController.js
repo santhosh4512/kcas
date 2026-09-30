@@ -3,15 +3,17 @@ const Student = require('../models/Student');
 const Subject = require('../models/Subject');
 const Department = require('../models/Department');
 const Course = require('../models/Course');
+const Faculty = require('../models/Faculty');
 const GeoCheckinLog = require('../models/GeoCheckinLog');
+const LocationAlert = require('../models/LocationAlert');
+const SystemSetting = require('../models/SystemSetting');
 const AuditLog = require('../models/AuditLog');
 const XLSX = require('xlsx');
 
-// Campus Coordinates: Kamban College of Arts and Science for Women (Velu Nagar, Mathur, Tiruvannamalai)
-const CAMPUS_LAT = 12.1903;
-const CAMPUS_LNG = 79.0839;
+// Default Campus Coordinates (Kamban College of Arts and Science for Women)
+const DEFAULT_CAMPUS_LAT = 12.1905865;
+const DEFAULT_CAMPUS_LNG = 79.0837848;
 const DEFAULT_GEOFENCE_RADIUS = 1000; // 1000 meters
-
 
 function calculateDistanceInMeters(lat1, lon1, lat2, lon2) {
   const R = 6371e3; // metres
@@ -211,12 +213,22 @@ exports.submitGeoCheckin = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Student ID is required' });
     }
 
-    const student = await Student.findById(targetStudentId).populate('department course');
+    const student = await Student.findById(targetStudentId)
+      .populate('department course mentor');
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
     const todayDate = new Date().toISOString().split('T')[0];
+    const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    // 1. Fetch Dynamic System Settings
+    let systemSettings = await SystemSetting.findOne({ key: 'SYSTEM_CONFIG' });
+    const campusLat = systemSettings?.campusLatitude || DEFAULT_CAMPUS_LAT;
+    const campusLng = systemSettings?.campusLongitude || DEFAULT_CAMPUS_LNG;
+    const allowedRadius = systemSettings?.campusRadiusMeters || DEFAULT_GEOFENCE_RADIUS;
+    const isGpsEnabled = systemSettings ? systemSettings.gpsEnabled : true;
+    const areAlertsEnabled = systemSettings ? systemSettings.locationAlertsEnabled : true;
 
     // Check if coordinates were supplied
     if (!latitude || !longitude) {
@@ -229,6 +241,8 @@ exports.submitGeoCheckin = async (req, res, next) => {
         status: 'FAILED_PERMISSION_DENIED',
         failureReason: 'GPS Location Permission Denied or Not Provided',
         userCoordinates: { latitude: 0, longitude: 0, accuracy: 0 },
+        campusCoordinates: { latitude: campusLat, longitude: campusLng },
+        geofenceRadiusMeters: allowedRadius,
       });
 
       return res.status(400).json({
@@ -238,12 +252,13 @@ exports.submitGeoCheckin = async (req, res, next) => {
     }
 
     // Calculate distance from Kamban College campus
-    const distanceMeters = calculateDistanceInMeters(Number(latitude), Number(longitude), CAMPUS_LAT, CAMPUS_LNG);
-    const isWithinCampus = distanceMeters <= DEFAULT_GEOFENCE_RADIUS;
+    const distanceMeters = calculateDistanceInMeters(Number(latitude), Number(longitude), campusLat, campusLng);
+    const isWithinCampus = distanceMeters <= allowedRadius;
 
     if (!isWithinCampus) {
-      // Record failed geolocation attempt
       const distanceKm = (distanceMeters / 1000).toFixed(2);
+
+      // Record failed geolocation attempt in GeoCheckinLog
       await GeoCheckinLog.create({
         student: student._id,
         registerNumber: student.registerNumber,
@@ -253,17 +268,97 @@ exports.submitGeoCheckin = async (req, res, next) => {
         status: 'FAILED_OUT_OF_CAMPUS',
         attendanceStatus: 'Absent',
         userCoordinates: { latitude: Number(latitude), longitude: Number(longitude), accuracy: Number(accuracy) || 10 },
+        campusCoordinates: { latitude: campusLat, longitude: campusLng },
         distanceFromCampusMeters: distanceMeters,
-        geofenceRadiusMeters: DEFAULT_GEOFENCE_RADIUS,
-        failureReason: `Outside college geofence! You are ${distanceKm} km away from Kamban College campus (Max allowed: 1 km).`,
+        geofenceRadiusMeters: allowedRadius,
+        failureReason: `Outside college geofence: ${distanceKm} km away from Kamban College campus (Max allowed: ${allowedRadius}m).`,
       });
+
+      // 2. Automated GPS Location Alert for Assigned Faculty
+      let assignedFacultyId = null;
+      let assignedFacultyName = 'Department Head / System Admin';
+
+      if (student.mentor && student.mentor._id) {
+        assignedFacultyId = student.mentor._id;
+        assignedFacultyName = student.mentor.name || 'Assigned Mentor';
+      } else if (student.department) {
+        const deptFaculty = await Faculty.findOne({ department: student.department._id });
+        if (deptFaculty) {
+          assignedFacultyId = deptFaculty._id;
+          assignedFacultyName = deptFaculty.name;
+        }
+      }
+
+      // Determine Alert Severity based on distance
+      const severity = distanceMeters > 10000 ? 'High' : distanceMeters > 3000 ? 'Medium' : 'Low';
+
+      let locationAlert = null;
+      if (areAlertsEnabled) {
+        locationAlert = await LocationAlert.create({
+          student: student._id,
+          studentName: student.name,
+          registerNumber: student.registerNumber,
+          department: student.department ? student.department._id : null,
+          course: student.course ? student.course._id : null,
+          year: student.year || 'I Year',
+          semester: student.semester || 'I',
+          section: student.section || 'A',
+          faculty: assignedFacultyId,
+          facultyName: assignedFacultyName,
+          userCoordinates: {
+            latitude: Number(latitude),
+            longitude: Number(longitude),
+            accuracy: Number(accuracy) || 10,
+          },
+          campusCoordinates: {
+            latitude: campusLat,
+            longitude: campusLng,
+          },
+          distanceFromCampusMeters: distanceMeters,
+          allowedRadiusMeters: allowedRadius,
+          date: todayDate,
+          time: nowTime,
+          locationStatus: 'Outside Campus',
+          attendanceAttemptStatus: 'Outside Campus - Not Automatically Marked',
+          severity,
+          status: 'Unread',
+          isRead: false,
+        });
+
+        // Audit Trail
+        await AuditLog.create({
+          user: req.user ? req.user._id : null,
+          performedBy: req.user ? req.user._id : null,
+          performerName: student.name,
+          performerRole: 'student',
+          action: 'GPS_ALERT_GENERATED',
+          module: 'GPS Location Alerts',
+          description: `Location alert generated: Student ${student.name} (${student.registerNumber}) attempted attendance from ${distanceKm} km outside campus radius (${allowedRadius}m). Notified: ${assignedFacultyName}.`,
+          entityId: locationAlert._id.toString(),
+          details: {
+            studentId: student._id,
+            registerNumber: student.registerNumber,
+            assignedFacultyId,
+            assignedFacultyName,
+            distanceMeters,
+            allowedRadius,
+            coordinates: { latitude: Number(latitude), longitude: Number(longitude) },
+          },
+          ipAddress: req.ip || '',
+        });
+      }
 
       return res.status(403).json({
         success: false,
         isGeoVerified: false,
         distanceMeters,
-        allowedRadius: DEFAULT_GEOFENCE_RADIUS,
-        message: `❌ Geolocation Verification Failed: You are ${distanceKm} km away from Kamban College campus. Attendance can only be marked inside the college campus geofence.`,
+        allowedRadius,
+        locationStatus: 'Outside Campus',
+        attendanceAttemptStatus: 'Outside Campus - Not Automatically Marked',
+        alertCreated: Boolean(locationAlert),
+        assignedFaculty: assignedFacultyName,
+        alertId: locationAlert ? locationAlert._id : null,
+        message: `❌ Geolocation Verification Failed: You are ${distanceKm} km away from Kamban College campus. Attendance was NOT automatically marked. A location notification has been generated for faculty review.`,
       });
     }
 
@@ -277,8 +372,9 @@ exports.submitGeoCheckin = async (req, res, next) => {
       status: 'SUCCESS_IN_CAMPUS',
       attendanceStatus: status,
       userCoordinates: { latitude: Number(latitude), longitude: Number(longitude), accuracy: Number(accuracy) || 10 },
+      campusCoordinates: { latitude: campusLat, longitude: campusLng },
       distanceFromCampusMeters: distanceMeters,
-      geofenceRadiusMeters: DEFAULT_GEOFENCE_RADIUS,
+      geofenceRadiusMeters: allowedRadius,
       deviceInfo: req.headers['user-agent'] || 'Web Client',
       ipAddress: req.ip || '',
     });
