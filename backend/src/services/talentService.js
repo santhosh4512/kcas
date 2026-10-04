@@ -1,22 +1,81 @@
 /**
  * Talent Intelligence Calculation Service
  * Deterministic talent score calculation, primary/secondary ranking,
- * joint-strength tie resolution, and dynamic narrative summary generation.
+ * joint-strength tie resolution, and dynamic suggestions & summary generation.
  */
 
 const CATEGORY_MAP = {
-  studies: 'Studies',
+  studies: 'Studies / Academic',
   sports: 'Sports',
-  arts: 'Arts & Culture',
-  technical: 'Technical Skills',
+  silambam: 'Silambam',
+  dance: 'Dance',
+  cultural: 'Cultural / Arts',
+  technical: 'Coding / Technical',
   communication: 'Communication',
   leadership: 'Leadership',
   other: 'Other Skills',
 };
 
+const SUGGESTIONS_MAP = {
+  silambam: [
+    'Advanced traditional weapon rotation & sparring masterclasses',
+    'State & National Level Silambam Championship participation',
+    'Inter-collegiate traditional martial arts exhibitions',
+    'Student coach and leadership roles in college sports & martial arts club',
+  ],
+  sports: [
+    'Inter-university tournament representation & athletic coaching',
+    'High-performance physical conditioning & sports science workshops',
+    'College sports council leadership & team captaincy',
+    'Officiating and referee state certification training',
+  ],
+  dance: [
+    'Inter-college youth festival representation & dance competitions',
+    'Choreography & cultural event direction for institutional summits',
+    'State level classical / folk dance performance opportunities',
+    'Fine arts & cultural committee lead',
+  ],
+  cultural: [
+    'University cultural fest representation in music, drama & fine arts',
+    'Department fest creative design & stage production coordination',
+    'Inter-collegiate arts exhibitions and workshop mentoring',
+    'Cultural secretary opportunities in student union',
+  ],
+  technical: [
+    'Hackathon & competitive coding bootcamps',
+    'Open source cloud software and full-stack project contributions',
+    'Industry internship readiness & technical paper publications',
+    'Technical symposium lead & peer coding mentorship',
+  ],
+  studies: [
+    'University Gold Medal track preparation & academic honors program',
+    'Undergraduate research paper publication in indexed journals',
+    'Peer tutoring, seminar chair & departmental symposium presenting',
+    'National level competitive exam coaching (NET/SET/GATE/UPSC)',
+  ],
+  communication: [
+    'Inter-college debate, Model UN & elocution championships',
+    'Master of Ceremonies (MC) for institutional conferences & summits',
+    'College editorial board, press release & public relations lead',
+    'Toastmasters International public speaking certification',
+  ],
+  leadership: [
+    'Student council executive candidacy & department representative',
+    'Department national conference convener & coordinator',
+    'Community outreach, NSS & social impact initiative lead',
+    'Campus event management & institutional delegation leadership',
+  ],
+  other: [
+    'Vocational skill specialization & master artisan mentorship',
+    'Entrepreneurship development cell (EDC) incubation project',
+    'Creative workshop facilitation & community skill training',
+    'Multi-disciplinary creative portfolio development',
+  ],
+};
+
 /**
- * Calculate student talent rankings, primary talent, and secondary strength
- * @param {Object} rawScores - { studies, sports, arts, technical, communication, leadership, other }
+ * Calculate student talent rankings, primary talent, secondary strength, and development suggestions
+ * @param {Object} rawScores - { studies, sports, silambam, dance, cultural, technical, communication, leadership, other }
  * @param {String} studentName - Student's full name for summary synthesis
  * @returns {Object} Calculated talent breakdown
  */
@@ -65,16 +124,42 @@ function calculateTalentScores(rawScores = {}, studentName = 'The student') {
     ? (primaryTalent.map(p => p.displayName).join(' & '))
     : 'Not Evaluated';
 
-  // 6. Synthesize Natural Language Summary
+  // 6. Generate Development Suggestions based on primary & secondary strengths
+  let suggestions = [];
+  primaryTalent.forEach((p) => {
+    if (SUGGESTIONS_MAP[p.category]) {
+      suggestions = suggestions.concat(SUGGESTIONS_MAP[p.category]);
+    }
+  });
+
+  if (suggestions.length === 0 && secondaryStrength.length > 0) {
+    secondaryStrength.forEach((s) => {
+      if (SUGGESTIONS_MAP[s.category]) {
+        suggestions = suggestions.concat(SUGGESTIONS_MAP[s.category]);
+      }
+    });
+  }
+
+  // Deduplicate suggestions and take top 4
+  suggestions = Array.from(new Set(suggestions)).slice(0, 4);
+  if (suggestions.length === 0) {
+    suggestions = [
+      'Participate in departmental workshops and skill-building bootcamps',
+      'Engage in peer-mentored academic and extracurricular activities',
+      'Identify personal passion areas with faculty mentor guidance',
+    ];
+  }
+
+  // 7. Synthesize Natural Language Summary
   let calculatedSummary = '';
   if (highestScore === 0) {
     calculatedSummary = `${studentName}'s talent profile is awaiting initial assessment. No category scores recorded yet.`;
   } else if (isJointHighest) {
-    const jointNames = primaryTalent.map((p) => p.displayName).join(' and ');
+    const jointNames = primaryTalent.map((p) => `${p.displayName} (${p.score}%)`).join(' and ');
     calculatedSummary = `${studentName} exhibits exceptional dual talent, jointly excelling in ${jointNames} with matching top scores of ${highestScore}%.`;
     if (secondaryStrength.length > 0) {
-      const secNames = secondaryStrength.map((s) => s.displayName).join(' and ');
-      calculatedSummary += ` Her subsequent strength is ${secNames} at ${secondHighestScore}%.`;
+      const secNames = secondaryStrength.map((s) => `${s.displayName} (${s.score}%)`).join(' and ');
+      calculatedSummary += ` Her subsequent strength is ${secNames}.`;
     }
   } else {
     const prim = primaryTalent[0];
@@ -93,6 +178,7 @@ function calculateTalentScores(rawScores = {}, studentName = 'The student') {
     highestScore,
     dominantCategoryName,
     isJointHighest,
+    suggestions,
     calculatedSummary,
   };
 }
@@ -107,10 +193,12 @@ function calculateDepartmentAnalytics(studentTalents = [], contextInfo = {}) {
   const totalStudents = studentTalents.length;
   
   const categoryCounts = {
-    'Studies': 0,
+    'Studies / Academic': 0,
     'Sports': 0,
-    'Arts & Culture': 0,
-    'Technical Skills': 0,
+    'Silambam': 0,
+    'Dance': 0,
+    'Cultural / Arts': 0,
+    'Coding / Technical': 0,
     'Communication': 0,
     'Leadership': 0,
     'Other Skills': 0,
@@ -120,7 +208,9 @@ function calculateDepartmentAnalytics(studentTalents = [], contextInfo = {}) {
   const categoryAverageScores = {
     studies: 0,
     sports: 0,
-    arts: 0,
+    silambam: 0,
+    dance: 0,
+    cultural: 0,
     technical: 0,
     communication: 0,
     leadership: 0,
@@ -130,7 +220,9 @@ function calculateDepartmentAnalytics(studentTalents = [], contextInfo = {}) {
   let totalSumScores = {
     studies: 0,
     sports: 0,
-    arts: 0,
+    silambam: 0,
+    dance: 0,
+    cultural: 0,
     technical: 0,
     communication: 0,
     leadership: 0,
@@ -138,7 +230,6 @@ function calculateDepartmentAnalytics(studentTalents = [], contextInfo = {}) {
   };
 
   studentTalents.forEach((talent) => {
-    // Add to averages
     if (talent.categoryScores) {
       Object.keys(categoryAverageScores).forEach((k) => {
         totalSumScores[k] += Number(talent.categoryScores[k] || 0);
@@ -217,6 +308,7 @@ function calculateDepartmentAnalytics(studentTalents = [], contextInfo = {}) {
 
 module.exports = {
   CATEGORY_MAP,
+  SUGGESTIONS_MAP,
   calculateTalentScores,
   calculateDepartmentAnalytics,
 };

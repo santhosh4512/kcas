@@ -1,26 +1,91 @@
 const Subject = require('../models/Subject');
+const Student = require('../models/Student');
 const Course = require('../models/Course');
 const Faculty = require('../models/Faculty');
 
+// Helper to resolve student
+async function resolveStudent(req) {
+  if (req.user.referenceId) {
+    const s = await Student.findById(req.user.referenceId);
+    if (s) return s;
+  }
+  const byEmail = await Student.findOne({ email: req.user.email });
+  return byEmail;
+}
+
 /**
- * @desc    Get subjects with filters
+ * @desc    Get current student's enrolled subjects based on their course and semester
+ * @route   GET /api/subjects/me
+ * @access  Private (Student)
+ */
+exports.getMySubjects = async (req, res, next) => {
+  try {
+    const student = await resolveStudent(req);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student record not found.' });
+    }
+
+    const query = {
+      course: student.course,
+      status: 'Active',
+    };
+
+    if (student.semester) {
+      query.semester = student.semester;
+    }
+
+    const subjects = await Subject.find(query)
+      .populate('department', 'name code')
+      .populate('course', 'courseName courseCode')
+      .populate('faculty', 'name employeeId designation email')
+      .sort({ subjectCode: 1 });
+
+    res.status(200).json({
+      success: true,
+      count: subjects.length,
+      student: {
+        name: student.name,
+        registerNumber: student.registerNumber,
+        semester: student.semester,
+      },
+      data: subjects,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get subjects with filters (Students only receive their own course/semester subjects)
  * @route   GET /api/subjects
  * @access  Private
  */
 exports.getSubjects = async (req, res, next) => {
   try {
-    const { department, course, semester, search } = req.query;
     const query = {};
 
-    if (department && department !== 'All') query.department = department;
-    if (course && course !== 'All') query.course = course;
-    if (semester && semester !== 'All') query.semester = semester;
+    // Privacy rule: Student sees ONLY subjects for their own course and semester
+    if (req.user.role === 'student') {
+      const student = await resolveStudent(req);
+      if (student) {
+        query.course = student.course;
+        if (student.semester) {
+          query.semester = student.semester;
+        }
+      }
+    } else {
+      const { department, course, semester, search } = req.query;
 
-    if (search) {
-      query.$or = [
-        { subjectName: { $regex: search, $options: 'i' } },
-        { subjectCode: { $regex: search, $options: 'i' } },
-      ];
+      if (department && department !== 'All') query.department = department;
+      if (course && course !== 'All') query.course = course;
+      if (semester && semester !== 'All') query.semester = semester;
+
+      if (search) {
+        query.$or = [
+          { subjectName: { $regex: search, $options: 'i' } },
+          { subjectCode: { $regex: search, $options: 'i' } },
+        ];
+      }
     }
 
     const subjects = await Subject.find(query)
@@ -40,7 +105,7 @@ exports.getSubjects = async (req, res, next) => {
 };
 
 /**
- * @desc    Create subject
+ * @desc    Create subject (Admin only)
  * @route   POST /api/subjects
  * @access  Private/Admin
  */
@@ -86,7 +151,7 @@ exports.createSubject = async (req, res, next) => {
 };
 
 /**
- * @desc    Update subject
+ * @desc    Update subject (Admin only)
  * @route   PUT /api/subjects/:id
  * @access  Private/Admin
  */
@@ -126,7 +191,7 @@ exports.updateSubject = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete subject
+ * @desc    Delete subject (Admin only)
  * @route   DELETE /api/subjects/:id
  * @access  Private/Admin
  */

@@ -38,17 +38,35 @@ function ProgressReportContent() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all students for student selector
+  // Fetch all students for student selector (faculty/admin only)
   useEffect(() => {
+    if (!user) return;
+    if (user.role === 'student') {
+      // Direct load student's own progress report
+      const fetchMyReport = async () => {
+        setLoading(true);
+        try {
+          const res = await api.get('/reports/student-progress/me');
+          if (res.data.success) {
+            setReport(res.data);
+          }
+        } catch (err) {
+          console.error('Error loading progress report:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchMyReport();
+      return;
+    }
+
     const fetchStudents = async () => {
       try {
         const res = await api.get('/students');
         if (res.data.success) {
           setStudentsList(res.data.data);
           if (!selectedStudentId && res.data.data.length > 0) {
-            // If user is student, pick their own ID, else pick first student
-            const defaultId = (user?.role === 'student' && user.referenceId) || res.data.data[0]._id;
-            setSelectedStudentId(defaultId);
+            setSelectedStudentId(res.data.data[0]._id);
           }
         }
       } catch (err) {
@@ -58,9 +76,9 @@ function ProgressReportContent() {
     fetchStudents();
   }, [user]);
 
-  // Fetch report data when selected student changes
+  // Fetch report data when selected student changes (faculty/admin)
   useEffect(() => {
-    if (!selectedStudentId) return;
+    if (!user || user.role === 'student' || !selectedStudentId) return;
 
     const fetchReport = async () => {
       setLoading(true);
@@ -77,7 +95,7 @@ function ProgressReportContent() {
     };
 
     fetchReport();
-  }, [selectedStudentId]);
+  }, [selectedStudentId, user]);
 
   const handlePrint = () => {
     window.print();

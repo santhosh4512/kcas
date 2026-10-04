@@ -6,16 +6,20 @@ const {
   getAttendanceHistory,
   getAttendanceSummary,
   submitGeoCheckin,
+  monitorCollegeHoursLocation,
   manualOverrideAttendance,
   getGeoCheckinLogs,
+  getMyAttendance,
 } = require('../controllers/attendanceController');
 const { protect, authorize } = require('../middleware/auth');
 
 router.use(protect);
 
+router.get('/me', getMyAttendance);
 router.get('/sheet', getAttendanceSheet);
 router.post('/save', authorize('admin', 'faculty'), saveAttendance);
 router.post('/geo-checkin', submitGeoCheckin);
+router.post('/location-monitor', monitorCollegeHoursLocation);
 router.post('/override', authorize('admin', 'faculty'), manualOverrideAttendance);
 router.get('/geo-logs', getGeoCheckinLogs);
 router.get('/history', getAttendanceHistory);

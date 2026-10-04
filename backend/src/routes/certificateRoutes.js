@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getCertificates,
+  getMyCertificates,
   getCertificateById,
   createCertificate,
   verifyCertificate,
@@ -9,14 +10,17 @@ const {
 } = require('../controllers/certificateController');
 const { protect, authorize } = require('../middleware/auth');
 
+router.use(protect);
+
+router.get('/me', getMyCertificates);
 router.route('/')
-  .get(protect, getCertificates)
-  .post(protect, createCertificate);
+  .get(getCertificates)
+  .post(createCertificate);
 
 router.route('/:id')
-  .get(protect, getCertificateById)
-  .delete(protect, deleteCertificate);
+  .get(getCertificateById)
+  .delete(authorize('admin', 'faculty'), deleteCertificate);
 
-router.patch('/:id/verify', protect, authorize('admin', 'faculty'), verifyCertificate);
+router.patch('/:id/verify', authorize('admin', 'faculty'), verifyCertificate);
 
 module.exports = router;

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getStudents,
+  getStudentMe,
   getStudentProfile,
   createStudent,
   updateStudent,
@@ -16,6 +17,7 @@ const { uploadExcel } = require('../middleware/upload');
 
 router.use(protect);
 
+router.get('/me', getStudentMe);
 router.get('/template', downloadTemplate);
 router.get('/export', exportStudents);
 router.post('/preview-excel', authorize('admin', 'faculty'), uploadExcel.single('file'), previewExcel);

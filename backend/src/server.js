@@ -67,6 +67,7 @@ app.use('/api/location-alerts', require('./routes/locationAlertRoutes'));
 app.use('/api/settings', require('./routes/systemSettingRoutes'));
 app.use('/api/backup', require('./routes/backupRoutes'));
 app.use('/api/faculty-workload', require('./routes/facultyWorkloadRoutes'));
+app.use('/api/student-reports', require('./routes/studentReportRoutes'));
 
 // Centralized error handling
 app.use(errorHandler);

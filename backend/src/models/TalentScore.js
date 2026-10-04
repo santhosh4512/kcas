@@ -40,48 +40,15 @@ const talentScoreSchema = new mongoose.Schema(
       default: 'A',
     },
     categoryScores: {
-      studies: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
-      },
-      sports: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
-      },
-      arts: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
-      },
-      technical: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
-      },
-      communication: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
-      },
-      leadership: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
-      },
-      other: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
-      },
+      studies: { type: Number, min: 0, max: 100, default: 0 },
+      sports: { type: Number, min: 0, max: 100, default: 0 },
+      silambam: { type: Number, min: 0, max: 100, default: 0 },
+      dance: { type: Number, min: 0, max: 100, default: 0 },
+      cultural: { type: Number, min: 0, max: 100, default: 0 },
+      technical: { type: Number, min: 0, max: 100, default: 0 },
+      communication: { type: Number, min: 0, max: 100, default: 0 },
+      leadership: { type: Number, min: 0, max: 100, default: 0 },
+      other: { type: Number, min: 0, max: 100, default: 0 },
     },
     primaryTalent: [
       {
@@ -117,6 +84,11 @@ const talentScoreSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    suggestions: [
+      {
+        type: String,
+      },
+    ],
     calculatedSummary: {
       type: String,
       default: '',

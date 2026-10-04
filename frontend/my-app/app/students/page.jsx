@@ -11,6 +11,7 @@ import Badge from '../../components/ui/Badge';
 import api from '../../lib/api';
 import { useNotification } from '../../lib/NotificationContext';
 import { useAuth } from '../../lib/AuthContext';
+import { useRouter } from 'next/navigation';
 import {
   GraduationCap,
   Plus,
@@ -31,8 +32,12 @@ import {
   BrainCircuit,
 } from 'lucide-react';
 
-
 export default function StudentsPage() {
+  const router = useRouter();
+  const { user, hasRole } = useAuth();
+  const isAdminOrFaculty = hasRole('admin', 'faculty');
+  const isStudent = hasRole('student');
+
   const [students, setStudents] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -61,7 +66,6 @@ export default function StudentsPage() {
   const [isAdvisorOpen, setIsAdvisorOpen] = useState(false);
   const [advisorStudentId, setAdvisorStudentId] = useState(null);
 
-
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [profileData, setProfileData] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -87,8 +91,12 @@ export default function StudentsPage() {
   });
 
   const { success, error, warning } = useNotification();
-  const { hasRole } = useAuth();
-  const isAdminOrFaculty = hasRole('admin', 'faculty');
+
+  useEffect(() => {
+    if (isStudent) {
+      router.push('/dashboard');
+    }
+  }, [isStudent, router]);
 
   const fetchStudents = async () => {
     setLoading(true);

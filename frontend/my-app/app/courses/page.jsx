@@ -64,8 +64,15 @@ export default function CoursesPage() {
   const [formLoading, setFormLoading] = useState(false);
 
   const { success, error, warning } = useNotification();
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const isAdmin = hasRole('admin');
+  const isStudent = hasRole('student');
+
+  useEffect(() => {
+    if (isStudent) {
+      setActiveTab('subjects');
+    }
+  }, [isStudent]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -397,17 +404,19 @@ export default function CoursesPage() {
       {/* Tabs */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
         <div className="flex items-center gap-2 rounded-2xl bg-slate-100 p-1.5">
-          <button
-            onClick={() => setActiveTab('courses')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
-              activeTab === 'courses'
-                ? 'bg-white text-blue-700 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Layers className="h-4 w-4" />
-            Degree Programs ({courses.length})
-          </button>
+          {!isStudent && (
+            <button
+              onClick={() => setActiveTab('courses')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
+                activeTab === 'courses'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Layers className="h-4 w-4" />
+              Degree Programs ({courses.length})
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('subjects')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
@@ -417,7 +426,7 @@ export default function CoursesPage() {
             }`}
           >
             <BookOpen className="h-4 w-4" />
-            Curriculum Subjects ({subjects.length})
+            {isStudent ? `My Semester Subjects (${subjects.length})` : `Curriculum Subjects (${subjects.length})`}
           </button>
         </div>
 

@@ -13,6 +13,121 @@ const excelService = require('../services/excelService');
 const talentService = require('../services/talentService');
 const XLSX = require('xlsx');
 
+// Helper to resolve student record for the authenticated user
+async function resolveStudent(req) {
+  if (req.user.referenceId) {
+    const s = await Student.findById(req.user.referenceId)
+      .populate('department', 'name code')
+      .populate('course', 'courseName courseCode duration')
+      .populate('mentor', 'name email designation phone');
+    if (s) return s;
+  }
+  const byEmail = await Student.findOne({ email: req.user.email })
+    .populate('department', 'name code')
+    .populate('course', 'courseName courseCode duration')
+    .populate('mentor', 'name email designation phone');
+  return byEmail;
+}
+
+/**
+ * @desc    Get current authenticated student's full 360 profile
+ * @route   GET /api/students/me
+ * @access  Private (Student)
+ */
+exports.getStudentMe = async (req, res, next) => {
+  try {
+    const student = await resolveStudent(req);
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student record associated with this account was not found.',
+      });
+    }
+
+    // 1. Fetch Marks
+    const marks = await Mark.find({ student: student._id }).populate('subject', 'subjectName subjectCode credits');
+    let academicAverage = student.initialMarks || 0;
+    if (marks.length > 0) {
+      const sum = marks.reduce((acc, m) => acc + (m.totalMark || 0), 0);
+      academicAverage = Math.round((sum / marks.length) * 10) / 10;
+    }
+
+    // 2. Fetch Attendance
+    const allAttendance = await Attendance.find({ 'records.student': student._id });
+    let totalWorkingDays = allAttendance.length;
+    let presentDays = 0;
+    allAttendance.forEach((att) => {
+      const rec = att.records.find((r) => String(r.student) === String(student._id));
+      if (rec && (rec.status === 'Present' || rec.status === 'On Duty')) {
+        presentDays++;
+      }
+    });
+
+    let attendancePercentage = student.initialAttendance || 85;
+    if (totalWorkingDays > 0) {
+      attendancePercentage = Math.round((presentDays / totalWorkingDays) * 1000) / 10;
+    }
+
+    // 3. Fetch Talent Scores & Auto-Sync
+    let talent = await TalentScore.findOne({ student: student._id });
+    if (!talent) {
+      const calculated = talentService.calculateTalentScores(
+        {
+          studies: academicAverage || 75,
+          silambam: 95,
+          technical: student.skills?.length ? 90 : 75,
+          sports: 85,
+          dance: 80,
+          cultural: 75,
+          communication: 80,
+          leadership: 78,
+          other: 70,
+        },
+        student.name
+      );
+
+      talent = await TalentScore.create({
+        student: student._id,
+        registerNumber: student.registerNumber,
+        studentName: student.name,
+        department: student.department ? student.department._id : null,
+        course: student.course ? student.course._id : null,
+        year: student.year,
+        semester: student.semester,
+        section: student.section,
+        ...calculated,
+      });
+    }
+
+    // 4. Fetch Skills
+    const skills = await Skill.find({ student: student._id });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        student,
+        academic: {
+          marks,
+          academicAverage,
+          totalSubjects: marks.length,
+          passedCount: marks.filter((m) => m.resultStatus === 'Pass').length,
+        },
+        attendance: {
+          totalWorkingDays: totalWorkingDays || 30,
+          presentDays: presentDays || Math.round((attendancePercentage * 30) / 100),
+          attendancePercentage,
+          status: attendancePercentage >= 75 ? 'Healthy' : attendancePercentage >= 65 ? 'Warning' : 'Low',
+        },
+        talent: talent || null,
+        skills,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * @desc    Get students with multi-criteria filters & pagination
  * @route   GET /api/students
@@ -20,6 +135,31 @@ const XLSX = require('xlsx');
  */
 exports.getStudents = async (req, res, next) => {
   try {
+    // Privacy Rule: If student role makes this call, return ONLY own student record
+    if (req.user.role === 'student') {
+      const student = await resolveStudent(req);
+      if (!student) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          total: 0,
+          totalPages: 0,
+          currentPage: 1,
+          data: [],
+        });
+      }
+      const talent = await TalentScore.findOne({ student: student._id });
+      return res.status(200).json({
+        success: true,
+        count: 1,
+        total: 1,
+        totalPages: 1,
+        currentPage: 1,
+        data: [{ ...student.toObject(), talentScore: talent || null }],
+      });
+    }
+
+    // Faculty & Admin: full student roster
     const {
       department,
       course,
@@ -98,6 +238,17 @@ exports.getStudents = async (req, res, next) => {
  */
 exports.getStudentProfile = async (req, res, next) => {
   try {
+    // Privacy Rule: If student role, prevent unauthorized ID access
+    if (req.user.role === 'student') {
+      const myStudent = await resolveStudent(req);
+      if (!myStudent || String(myStudent._id) !== String(req.params.id)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access Denied: You are not authorized to view another student’s profile.',
+        });
+      }
+    }
+
     const student = await Student.findById(req.params.id)
       .populate('department', 'name code hod')
       .populate('course', 'courseName courseCode duration courseType')
@@ -110,7 +261,6 @@ exports.getStudentProfile = async (req, res, next) => {
     // 1. Fetch Marks
     const marks = await Mark.find({ student: student._id }).populate('subject', 'subjectName subjectCode credits');
 
-    // Calculate Academic Average
     let academicAverage = student.initialMarks || 0;
     if (marks.length > 0) {
       const sum = marks.reduce((acc, m) => acc + (m.totalMark || 0), 0);
@@ -150,7 +300,7 @@ exports.getStudentProfile = async (req, res, next) => {
           sports: sportsScore,
           leadership: leadershipScore,
           communication: 80,
-          arts: 75,
+          cultural: 75,
         },
         student.name
       );
@@ -231,7 +381,7 @@ exports.createStudent = async (req, res, next) => {
     } = req.body;
 
     const cleanReg = registerNumber.toUpperCase().trim();
-    const cleanEmail = (email || `${cleanReg.toLowerCase()}@kambancollege.edu.in`).toLowerCase().trim();
+    const cleanEmail = (email || `${cleanReg.toLowerCase()}@kcas.edu.in`).toLowerCase().trim();
 
     const existing = await Student.findOne({
       $or: [{ registerNumber: cleanReg }, { email: cleanEmail }],
@@ -244,13 +394,12 @@ exports.createStudent = async (req, res, next) => {
       });
     }
 
-    // Match or create Faculty Mentor if mentorName is provided
     let mentorId = null;
     if (mentorName && mentorName.trim()) {
       let faculty = await Faculty.findOne({ name: { $regex: `^${mentorName.trim()}$`, $options: 'i' } });
       if (!faculty) {
         const empCode = `FAC-${Math.floor(100 + Math.random() * 900)}`;
-        const facEmail = `${mentorName.toLowerCase().replace(/[^a-z0-9]/g, '')}@kambancollege.edu.in`;
+        const facEmail = `${mentorName.toLowerCase().replace(/[^a-z0-9]/g, '')}@kcas.edu.in`;
         faculty = await Faculty.create({
           facultyId: empCode,
           employeeId: empCode,
@@ -261,32 +410,6 @@ exports.createStudent = async (req, res, next) => {
           qualification: 'M.Sc., M.Phil., Ph.D.',
           status: 'Active',
         });
-
-        // Create Faculty User login
-        const existingFacUser = await User.findOne({ email: facEmail });
-        if (!existingFacUser) {
-          await User.create({
-            name: faculty.name,
-            email: facEmail,
-            password: 'faculty123',
-            role: 'faculty',
-            department,
-            referenceId: faculty._id,
-            roleRefModel: 'Faculty',
-            permissions: [
-              'view_students',
-              'edit_students',
-              'view_attendance',
-              'manage_attendance',
-              'view_marks',
-              'manage_marks',
-              'view_talent',
-              'manage_talent',
-              'view_reports',
-              'export_reports',
-            ],
-          });
-        }
       }
       mentorId = faculty._id;
     }
@@ -419,7 +542,6 @@ exports.updateStudent = async (req, res, next) => {
 
     await student.save();
 
-    // Sync talent record
     await TalentScore.updateOne(
       { student: student._id },
       {
@@ -467,7 +589,6 @@ exports.deleteStudent = async (req, res, next) => {
       Student.findByIdAndDelete(req.params.id),
     ]);
 
-    // Log deletion
     if (req.user) {
       await AuditLog.create({
         user: req.user._id,
@@ -493,10 +614,13 @@ exports.deleteStudent = async (req, res, next) => {
 /**
  * @desc    Download Student Excel Template
  * @route   GET /api/students/template
- * @access  Private
+ * @access  Private (Admin / Faculty)
  */
 exports.downloadTemplate = async (req, res, next) => {
   try {
+    if (req.user.role === 'student') {
+      return res.status(403).json({ success: false, message: 'Access Denied: Excel template is restricted to faculty & admin.' });
+    }
     const buffer = excelService.generateStudentTemplate();
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=KCAS_Student_Import_Template.xlsx');
@@ -541,82 +665,36 @@ exports.importStudents = async (req, res, next) => {
 
     const inserted = [];
     const failed = [];
+    const duplicates = [];
     const todayStr = new Date().toISOString().split('T')[0];
-
-    // Fetch subjects cache to link initial marks
-    const allSubjects = await Subject.find({});
-    const subjectMap = new Map();
-    allSubjects.forEach((s) => {
-      subjectMap.set(String(s.department), s);
-    });
 
     for (const item of records) {
       try {
         const cleanReg = String(item.registerNumber || '').toUpperCase().trim();
-        const cleanEmail = String(item.email || `${cleanReg.toLowerCase()}@kambancollege.edu.in`).toLowerCase().trim();
+        const cleanEmail = String(item.email || `${cleanReg.toLowerCase()}@kcas.edu.in`).toLowerCase().trim();
 
-        // Check if student already exists
+        if (!cleanReg || !item.name) {
+          failed.push({
+            registerNumber: cleanReg || 'MISSING',
+            name: item.name || 'Missing Name',
+            reason: 'Missing required field: Register Number or Student Name',
+          });
+          continue;
+        }
+
         const exists = await Student.findOne({
           $or: [{ registerNumber: cleanReg }, { email: cleanEmail }],
         });
 
         if (exists) {
-          failed.push({
+          duplicates.push({
             registerNumber: cleanReg,
             name: item.name,
-            reason: 'Record already exists in the database',
+            reason: 'Duplicate record: Register Number or Email already exists in database',
           });
           continue;
         }
 
-        // Mentor resolution or creation
-        let mentorId = item.mentor || null;
-        if (!mentorId && item.mentorName && item.mentorName.trim()) {
-          let fac = await Faculty.findOne({ name: { $regex: `^${item.mentorName.trim()}$`, $options: 'i' } });
-          if (!fac) {
-            const empCode = `FAC-${Math.floor(100 + Math.random() * 900)}`;
-            const facEmail = `${item.mentorName.toLowerCase().replace(/[^a-z0-9]/g, '')}@kambancollege.edu.in`;
-            fac = await Faculty.create({
-              facultyId: empCode,
-              employeeId: empCode,
-              name: item.mentorName.trim(),
-              email: facEmail,
-              department: item.department,
-              designation: 'Faculty Mentor',
-              qualification: 'M.Sc., M.Phil., Ph.D.',
-              status: 'Active',
-            });
-
-            // Create Faculty User account
-            const existingUser = await User.findOne({ email: facEmail });
-            if (!existingUser) {
-              await User.create({
-                name: fac.name,
-                email: facEmail,
-                password: 'faculty123',
-                role: 'faculty',
-                department: item.department,
-                referenceId: fac._id,
-                roleRefModel: 'Faculty',
-                permissions: [
-                  'view_students',
-                  'edit_students',
-                  'view_attendance',
-                  'manage_attendance',
-                  'view_marks',
-                  'manage_marks',
-                  'view_talent',
-                  'manage_talent',
-                  'view_reports',
-                  'export_reports',
-                ],
-              });
-            }
-          }
-          mentorId = fac._id;
-        }
-
-        // Create student document
         const student = await Student.create({
           studentId: item.studentId || `STU-${cleanReg}`,
           registerNumber: cleanReg,
@@ -634,7 +712,7 @@ exports.importStudents = async (req, res, next) => {
           section: item.section || 'A',
           parentName: item.parentName || 'Parent / Guardian',
           parentPhone: item.parentPhone || '',
-          mentor: mentorId,
+          mentor: item.mentor || null,
           mentorName: item.mentorName || '',
           initialAttendance: item.initialAttendance !== undefined ? item.initialAttendance : 85,
           initialMarks: item.initialMarks !== undefined ? item.initialMarks : 75,
@@ -668,11 +746,11 @@ exports.importStudents = async (req, res, next) => {
         const calc = talentService.calculateTalentScores(
           {
             studies: student.initialMarks || 75,
-            technical: student.skills && student.skills.length > 0 ? 90 : 72,
-            sports: student.achievements && student.achievements.length > 0 ? 88 : 70,
-            leadership: student.activities && student.activities.length > 0 ? 85 : 70,
+            technical: student.skills?.length ? 90 : 72,
+            sports: student.achievements?.length ? 88 : 70,
+            leadership: student.activities?.length ? 85 : 70,
             communication: 82,
-            arts: 75,
+            cultural: 75,
           },
           student.name
         );
@@ -688,80 +766,6 @@ exports.importStudents = async (req, res, next) => {
           section: student.section,
           ...calc,
         });
-
-        // Create initial marks record if department has subjects
-        const matchedSubject = subjectMap.get(String(student.department));
-        if (matchedSubject) {
-          const markVal = student.initialMarks || 75;
-          const intMark = Math.min(25, Math.round((markVal * 25) / 100));
-          const extMark = Math.min(75, Math.round((markVal * 75) / 100));
-          await Mark.create({
-            student: student._id,
-            registerNumber: student.registerNumber,
-            studentName: student.name,
-            department: student.department,
-            course: student.course,
-            semester: student.semester,
-            subject: matchedSubject._id,
-            subjectCode: matchedSubject.subjectCode,
-            subjectName: matchedSubject.subjectName,
-            internalMark: intMark,
-            externalMark: extMark,
-            totalMark: intMark + extMark,
-            percentage: markVal,
-            grade: markVal >= 80 ? 'A+' : markVal >= 60 ? 'A' : markVal >= 50 ? 'B' : 'RA',
-            resultStatus: markVal >= 40 ? 'Pass' : 'Fail',
-          });
-        }
-
-        // Link with attendance record
-        if (matchedSubject) {
-          let attSheet = await Attendance.findOne({
-            department: student.department,
-            course: student.course,
-            date: todayStr,
-            section: student.section,
-          });
-
-          const attStatus = student.initialAttendance >= 50 ? 'Present' : 'Absent';
-          if (!attSheet) {
-            await Attendance.create({
-              department: student.department,
-              course: student.course,
-              year: student.year,
-              semester: student.semester,
-              section: student.section,
-              subject: matchedSubject._id,
-              date: todayStr,
-              totalStudents: 1,
-              presentCount: attStatus === 'Present' ? 1 : 0,
-              absentCount: attStatus === 'Absent' ? 1 : 0,
-              markedBy: req.user ? req.user._id : null,
-              records: [
-                {
-                  student: student._id,
-                  registerNumber: student.registerNumber,
-                  status: attStatus,
-                  verificationMethod: 'MANUAL_FACULTY',
-                },
-              ],
-            });
-          } else {
-            const alreadyInSheet = attSheet.records.some((r) => String(r.student) === String(student._id));
-            if (!alreadyInSheet) {
-              attSheet.records.push({
-                student: student._id,
-                registerNumber: student.registerNumber,
-                status: attStatus,
-                verificationMethod: 'MANUAL_FACULTY',
-              });
-              attSheet.totalStudents = attSheet.records.length;
-              attSheet.presentCount = attSheet.records.filter((r) => r.status === 'Present' || r.status === 'On Duty').length;
-              attSheet.absentCount = attSheet.records.filter((r) => r.status === 'Absent').length;
-              await attSheet.save();
-            }
-          }
-        }
       } catch (err) {
         failed.push({
           registerNumber: item.registerNumber,
@@ -771,7 +775,6 @@ exports.importStudents = async (req, res, next) => {
       }
     }
 
-    // Create Audit Log
     if (req.user) {
       await AuditLog.create({
         user: req.user._id,
@@ -780,21 +783,28 @@ exports.importStudents = async (req, res, next) => {
         performerRole: req.user.role,
         action: 'EXCEL_STUDENT_IMPORT',
         module: 'Student Management',
-        description: `Bulk imported ${inserted.length} college student records (${failed.length} failed/duplicates).`,
+        description: `Bulk imported ${inserted.length} college student records (${duplicates.length} duplicates, ${failed.length} invalid).`,
         details: {
-          successCount: inserted.length,
-          failedCount: failed.length,
-          failedRecords: failed,
+          totalRows: records.length,
+          successfulRows: inserted.length,
+          duplicateRows: duplicates.length,
+          invalidRows: failed.length,
         },
       });
     }
 
     res.status(201).json({
       success: true,
-      message: `Successfully imported ${inserted.length} student records into database. ${failed.length > 0 ? `(${failed.length} duplicate/failed records skipped)` : ''}`,
+      message: `Successfully imported ${inserted.length} student records into database.`,
+      summary: {
+        totalRows: records.length,
+        successfulRows: inserted.length,
+        duplicateRows: duplicates.length,
+        invalidRows: failed.length,
+        duplicateRecords: duplicates,
+        invalidRecords: failed,
+      },
       count: inserted.length,
-      failedCount: failed.length,
-      failedRecords: failed,
     });
   } catch (error) {
     next(error);
@@ -802,12 +812,16 @@ exports.importStudents = async (req, res, next) => {
 };
 
 /**
- * @desc    Export Students to Excel / CSV
+ * @desc    Export Students to Excel / CSV (Admin / Faculty only)
  * @route   GET /api/students/export
  * @access  Private
  */
 exports.exportStudents = async (req, res, next) => {
   try {
+    if (req.user.role === 'student') {
+      return res.status(403).json({ success: false, message: 'Access Denied: Students are not permitted to export rosters.' });
+    }
+
     const { department, course, year, semester, section, status } = req.query;
     const query = {};
     if (department && department !== 'All') query.department = department;

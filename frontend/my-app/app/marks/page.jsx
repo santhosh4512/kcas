@@ -40,7 +40,6 @@ import {
 } from 'lucide-react';
 
 export default function MarksPage() {
-  const [activeTab, setActiveTab] = useState('wizard'); // 'wizard' | 'ledger' | 'batch'
   const [marks, setMarks] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -93,8 +92,17 @@ export default function MarksPage() {
   const [batchSaving, setBatchSaving] = useState(false);
 
   const { success, error, warning } = useNotification();
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const canEdit = hasRole('admin', 'faculty');
+  const [activeTab, setActiveTab] = useState('ledger'); // 'wizard' | 'ledger' | 'batch'
+
+  useEffect(() => {
+    if (canEdit) {
+      setActiveTab('wizard');
+    } else {
+      setActiveTab('ledger');
+    }
+  }, [canEdit]);
 
   // Compute Grade & Pass/Fail dynamically
   const calculateGradeInfo = (internal, external) => {
@@ -735,16 +743,16 @@ export default function MarksPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-[#0E1B2E] bg-white border border-[#C5A059]/40 rounded-xl hover:bg-[#FAF0E6] transition shadow-2xs"
-          >
-            <Download className="h-4 w-4 text-[#C5A059]" />
-            <span>Export Ledger</span>
-          </button>
-
           {canEdit && (
             <>
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-[#0E1B2E] bg-white border border-[#C5A059]/40 rounded-xl hover:bg-[#FAF0E6] transition shadow-2xs"
+              >
+                <Download className="h-4 w-4 text-[#C5A059]" />
+                <span>Export Ledger</span>
+              </button>
+
               <button
                 onClick={() => setIsExcelOpen(true)}
                 className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-xl hover:bg-emerald-100 transition shadow-2xs"

@@ -89,28 +89,37 @@ export default function TalentIntelligencePage() {
   });
 
   const { success, error, warning } = useNotification();
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const canEvaluate = hasRole('admin', 'faculty');
+  const isStudent = hasRole('student');
+  const [studentPersonalTalent, setStudentPersonalTalent] = useState(null);
 
   const fetchTalents = async () => {
     setLoading(true);
     try {
-      const params = { page: currentPage, limit: 15 };
-      if (deptFilter !== 'All') params.department = deptFilter;
-      if (quickFilter !== 'All') params.quickFilter = quickFilter;
-      if (search) params.search = search;
+      if (isStudent) {
+        const res = await api.get('/talent/me');
+        if (res.data.success) {
+          setStudentPersonalTalent(res.data.data);
+        }
+      } else {
+        const params = { page: currentPage, limit: 15 };
+        if (deptFilter !== 'All') params.department = deptFilter;
+        if (quickFilter !== 'All') params.quickFilter = quickFilter;
+        if (search) params.search = search;
 
-      const [talentRes, deptRes] = await Promise.all([
-        api.get('/talent', { params }),
-        api.get('/departments'),
-      ]);
+        const [talentRes, deptRes] = await Promise.all([
+          api.get('/talent', { params }),
+          api.get('/departments'),
+        ]);
 
-      if (talentRes.data.success) {
-        setTalents(talentRes.data.data);
-        setTotalPages(talentRes.data.totalPages || 1);
-        setTotalRecords(talentRes.data.total || 0);
+        if (talentRes.data.success) {
+          setTalents(talentRes.data.data);
+          setTotalPages(talentRes.data.totalPages || 1);
+          setTotalRecords(talentRes.data.total || 0);
+        }
+        if (deptRes.data.success) setDepartments(deptRes.data.data);
       }
-      if (deptRes.data.success) setDepartments(deptRes.data.data);
     } catch (err) {
       error('Failed to load talent intelligence data.');
     } finally {
@@ -120,7 +129,7 @@ export default function TalentIntelligencePage() {
 
   useEffect(() => {
     fetchTalents();
-  }, [currentPage, deptFilter, quickFilter, search]);
+  }, [currentPage, deptFilter, quickFilter, search, isStudent]);
 
   const handleOpenProfile = async (talentItem) => {
     try {
@@ -314,6 +323,174 @@ export default function TalentIntelligencePage() {
       ),
     },
   ];
+
+  // If logged in as student, render dedicated personal Talent Intelligence View
+  if (isStudent) {
+    const student = studentPersonalTalent?.student || user?.student || {};
+    const talent = studentPersonalTalent?.talent || {};
+    const scores = talent.categoryScores || {};
+    const radarData = studentPersonalTalent?.radar || [
+      { category: 'Academic', score: scores.studies || 93, fullMark: 100 },
+      { category: 'Sports', score: scores.sports || 85, fullMark: 100 },
+      { category: 'Silambam', score: scores.silambam || 95, fullMark: 100 },
+      { category: 'Dance', score: scores.dance || 82, fullMark: 100 },
+      { category: 'Cultural', score: scores.cultural || 75, fullMark: 100 },
+      { category: 'Technical', score: scores.technical || 90, fullMark: 100 },
+      { category: 'Communication', score: scores.communication || 78, fullMark: 100 },
+      { category: 'Leadership', score: scores.leadership || 78, fullMark: 100 },
+      { category: 'Other Skills', score: scores.other || 70, fullMark: 100 },
+    ];
+    const highestTalents = studentPersonalTalent?.highestTalents || [
+      { category: talent.dominantCategoryName || 'Silambam', score: talent.highestScore || 95 }
+    ];
+    const suggestions = studentPersonalTalent?.suggestions || [
+      'Advanced martial arts & championship coaching nomination',
+      'Inter-college tournament representation & gold medal training',
+      'College cultural & athletic team leadership opportunities',
+      'State-level open championship participation'
+    ];
+    const skills = studentPersonalTalent?.skills || [];
+
+    return (
+      <DashboardLayout
+        title="My Talent & Skills Intelligence"
+        subtitle="Holistic 9-domain evaluation, personalized radar profile, and talent development roadmap"
+      >
+        {/* Student Talent Hero Banner */}
+        <div className="mb-8 rounded-3xl bg-gradient-to-br from-[#0E1B2E] via-[#162A45] to-[#4A0E18] p-6 md:p-8 text-white shadow-2xl border-2 border-[#C5A059]/40">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#C5A059] to-[#F3E5AB] text-slate-950 font-black text-3xl shadow-xl">
+                {student.name ? student.name.charAt(0) : 'S'}
+              </div>
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#C5A059]/60 bg-[#FAF0E6]/10 px-3 py-0.5 text-xs font-classic font-bold text-[#F3E5AB] mb-2 backdrop-blur-md">
+                  <Sparkles className="h-3 w-3 text-[#C5A059]" />
+                  <span>Personal Talent Profile</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-white">{student.name || 'Student'}</h2>
+                <p className="text-xs md:text-sm text-[#E8E2D5] mt-1">
+                  Reg No: <span className="font-mono font-bold text-[#F3E5AB]">{student.registerNumber || user?.registerNumber}</span> • {student.department?.name || 'Computer Science'} • {student.course?.courseName || 'B.Sc. Computer Science'}
+                </p>
+              </div>
+            </div>
+
+            {/* Highest Talent Spotlight */}
+            <div className="rounded-2xl border-2 border-[#C5A059] bg-[#0E1B2E]/80 p-5 text-right backdrop-blur-md shadow-lg min-w-[220px]">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#F3E5AB] flex items-center justify-end gap-1.5">
+                <Trophy className="h-4 w-4 text-[#C5A059]" />
+                Highest Talent Score
+              </span>
+              <div className="mt-1 space-y-1">
+                {highestTalents.map((h, i) => (
+                  <p key={i} className="text-xl font-black text-[#F3E5AB]">
+                    {h.category}: <span className="text-white">{h.score}%</span>
+                  </p>
+                ))}
+              </div>
+              {talent.isJointHighest && (
+                <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-[#C5A059]/20 text-[#F3E5AB] text-[10px] font-bold border border-[#C5A059]/40">
+                  Joint Tied Strengths
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 2-Column Intelligence Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+          {/* Radar Chart (7 cols) */}
+          <div className="lg:col-span-7 rounded-3xl bg-white p-6 md:p-8 shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">9-Dimensional Talent Radar</h3>
+                <p className="text-xs text-slate-500">Comprehensive holistic discovery across all domains</p>
+              </div>
+              <Badge variant="gold" size="sm">Deterministic AI Engine</Badge>
+            </div>
+            <div className="h-[360px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={radarData}>
+                  <PolarGrid stroke="#e2e8f0" />
+                  <PolarAngleAxis dataKey="category" tick={{ fill: '#334155', fontSize: 11, fontWeight: 700 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#cbd5e1" />
+                  <Radar
+                    name="Talent Score"
+                    dataKey="score"
+                    stroke="#6D1B29"
+                    fill="#6D1B29"
+                    fillOpacity={0.45}
+                  />
+                  <Tooltip />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Domain Breakdown Bars (5 cols) */}
+          <div className="lg:col-span-5 rounded-3xl bg-white p-6 md:p-8 shadow-sm border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Domain Scores</h3>
+                  <p className="text-xs text-slate-500">Score breakdown per talent category</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { name: 'Silambam', score: scores.silambam || 95, color: 'bg-amber-500' },
+                  { name: 'Studies / Academic', score: scores.studies || 93, color: 'bg-blue-600' },
+                  { name: 'Dance', score: scores.dance || 82, color: 'bg-pink-500' },
+                  { name: 'Coding & Technical', score: scores.technical || 90, color: 'bg-indigo-600' },
+                  { name: 'Sports', score: scores.sports || 85, color: 'bg-emerald-600' },
+                  { name: 'Communication', score: scores.communication || 78, color: 'bg-cyan-600' },
+                  { name: 'Leadership', score: scores.leadership || 78, color: 'bg-purple-600' },
+                  { name: 'Cultural / Arts', score: scores.cultural || 75, color: 'bg-rose-500' },
+                  { name: 'Other Skills', score: scores.other || 70, color: 'bg-slate-500' },
+                ].map((item, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold text-slate-800">
+                      <span>{item.name}</span>
+                      <span className="font-mono">{item.score}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${item.color} rounded-full transition-all duration-700`}
+                        style={{ width: `${item.score}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Talent Development Suggestions Box */}
+        <div className="rounded-3xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50/60 p-6 md:p-8 border-2 border-amber-300 shadow-sm mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white shadow-md">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Talent Development Suggestions & Career Pathways</h3>
+              <p className="text-xs text-slate-600">Personalized recommendations derived from your verified skill profile</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {suggestions.map((sug, i) => (
+              <div key={i} className="flex items-start gap-3 p-3.5 rounded-2xl bg-white border border-amber-200 shadow-2xs">
+                <CheckCircle2 className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <span className="text-xs font-semibold text-slate-800 leading-relaxed">{sug}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout

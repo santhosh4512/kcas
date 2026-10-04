@@ -2,20 +2,63 @@ const Certificate = require('../models/Certificate');
 const Student = require('../models/Student');
 const AuditLog = require('../models/AuditLog');
 
+// Helper to resolve student
+async function resolveStudent(req) {
+  if (req.user.referenceId) {
+    const s = await Student.findById(req.user.referenceId);
+    if (s) return s;
+  }
+  const byEmail = await Student.findOne({ email: req.user.email });
+  return byEmail;
+}
+
+/**
+ * @desc Get current student's personal certificates
+ * @route GET /api/certificates/me
+ * @access Private (Student)
+ */
+exports.getMyCertificates = async (req, res, next) => {
+  try {
+    const student = await resolveStudent(req);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student profile not found.' });
+    }
+
+    const certificates = await Certificate.find({ student: student._id })
+      .sort({ createdAt: -1 })
+      .populate('verifiedBy', 'name designation');
+
+    res.status(200).json({
+      success: true,
+      count: certificates.length,
+      data: certificates,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * @desc Get all certificates (with filters by student, category, status)
  * @route GET /api/certificates
  */
 exports.getCertificates = async (req, res, next) => {
   try {
-    const { studentId, category, status, search } = req.query;
+    const { category, status, search, studentId } = req.query;
     const filter = {};
 
-    if (studentId) filter.student = studentId;
+    // Privacy rule
+    if (req.user.role === 'student') {
+      const student = await resolveStudent(req);
+      filter.student = student ? student._id : null;
+    } else {
+      if (studentId) filter.student = studentId;
+    }
+
     if (category && category !== 'all') filter.category = category;
     if (status && status !== 'all') filter.verificationStatus = status;
 
-    let query = Certificate.find(filter)
+    const certificates = await Certificate.find(filter)
       .sort({ createdAt: -1 })
       .populate({
         path: 'student',
@@ -23,8 +66,6 @@ exports.getCertificates = async (req, res, next) => {
         populate: { path: 'department', select: 'name code' },
       })
       .populate('verifiedBy', 'name role email');
-
-    const certificates = await query;
 
     res.status(200).json({
       success: true,
@@ -50,6 +91,14 @@ exports.getCertificateById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Certificate record not found' });
     }
 
+    // Privacy rule
+    if (req.user.role === 'student') {
+      const student = await resolveStudent(req);
+      if (!student || String(student._id) !== String(cert.student?._id)) {
+        return res.status(403).json({ success: false, message: 'Access Denied: You cannot view this certificate.' });
+      }
+    }
+
     res.status(200).json({ success: true, data: cert });
   } catch (err) {
     next(err);
@@ -57,13 +106,20 @@ exports.getCertificateById = async (req, res, next) => {
 };
 
 /**
- * @desc Upload/Create student certificate
+ * @desc Upload/Create student certificate (Faculty / Admin / Student)
  * @route POST /api/certificates
  */
 exports.createCertificate = async (req, res, next) => {
   try {
     const { studentId, title, category, issuer, issueDate, credentialId, credentialUrl, fileUrl, pointsAwarded } = req.body;
-    const targetStudentId = studentId || (req.user && req.user.referenceId);
+
+    let targetStudentId;
+    if (req.user.role === 'student') {
+      const s = await resolveStudent(req);
+      targetStudentId = s ? s._id : null;
+    } else {
+      targetStudentId = studentId || (await resolveStudent(req))?._id;
+    }
 
     if (!targetStudentId) {
       return res.status(400).json({ success: false, message: 'Student reference is required' });
@@ -84,9 +140,9 @@ exports.createCertificate = async (req, res, next) => {
       credentialUrl: credentialUrl || '',
       fileUrl: fileUrl || '',
       pointsAwarded: Number(pointsAwarded) || 10,
-      verificationStatus: req.user && req.user.role === 'admin' ? 'Verified' : 'Pending',
-      verifiedBy: req.user && req.user.role === 'admin' ? req.user._id : null,
-      verifiedAt: req.user && req.user.role === 'admin' ? new Date() : null,
+      verificationStatus: req.user && (req.user.role === 'admin' || req.user.role === 'faculty') ? 'Verified' : 'Pending',
+      verifiedBy: req.user && (req.user.role === 'admin' || req.user.role === 'faculty') ? req.user._id : null,
+      verifiedAt: req.user && (req.user.role === 'admin' || req.user.role === 'faculty') ? new Date() : null,
     });
 
     if (req.user) {
@@ -118,7 +174,7 @@ exports.createCertificate = async (req, res, next) => {
  */
 exports.verifyCertificate = async (req, res, next) => {
   try {
-    const { status, rejectionReason, pointsAwarded } = req.body; // status: 'Verified' or 'Rejected'
+    const { status, rejectionReason, pointsAwarded } = req.body;
 
     const cert = await Certificate.findById(req.params.id).populate('student', 'name registerNumber');
     if (!cert) {
@@ -162,7 +218,7 @@ exports.verifyCertificate = async (req, res, next) => {
 };
 
 /**
- * @desc Delete certificate
+ * @desc Delete certificate (Faculty / Admin only)
  * @route DELETE /api/certificates/:id
  */
 exports.deleteCertificate = async (req, res, next) => {

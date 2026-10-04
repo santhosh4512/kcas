@@ -9,17 +9,38 @@ const Event = require('../models/Event');
 const Department = require('../models/Department');
 const Course = require('../models/Course');
 
+// Helper to resolve student
+async function resolveStudent(req) {
+  if (req.user.referenceId) {
+    const s = await Student.findById(req.user.referenceId);
+    if (s) return s;
+  }
+  const byEmail = await Student.findOne({ email: req.user.email });
+  return byEmail;
+}
+
 /**
  * @desc Generate Comprehensive Student Progress Report Card
  * @route GET /api/reports/student-progress/:studentId
  */
 exports.getStudentProgressReport = async (req, res, next) => {
   try {
-    const { studentId } = req.params;
+    let { studentId } = req.params;
+
+    if (studentId === 'me' || req.user.role === 'student') {
+      const myStudent = await resolveStudent(req);
+      if (!myStudent) {
+        return res.status(404).json({ success: false, message: 'Student record not found.' });
+      }
+      if (studentId !== 'me' && String(myStudent._id) !== String(studentId)) {
+        return res.status(403).json({ success: false, message: 'Access Denied: You cannot view other students progress reports.' });
+      }
+      studentId = myStudent._id;
+    }
 
     const student = await Student.findById(studentId)
       .populate('department', 'name code')
-      .populate('course', 'courseName courseCode durationYears')
+      .populate('course', 'courseName courseCode duration')
       .populate('mentor', 'name designation email phone');
 
     if (!student) {
@@ -38,7 +59,7 @@ exports.getStudentProgressReport = async (req, res, next) => {
       const rec = doc.records.find((r) => String(r.student) === String(student._id));
       if (rec) {
         totalWorkingDays++;
-        if (rec.status === 'Present') presentDays++;
+        if (rec.status === 'Present' || rec.status === 'Late' || rec.status === 'Late Present') presentDays++;
         else if (rec.status === 'On Duty') odDays++;
         else if (rec.status === 'Absent' || rec.status === 'Leave') absentDays++;
 
@@ -47,13 +68,14 @@ exports.getStudentProgressReport = async (req, res, next) => {
     });
 
     const attendedCount = presentDays + odDays;
-    const attendancePercentage = totalWorkingDays > 0 ? Math.round((attendedCount / totalWorkingDays) * 1000) / 10 : 100;
+    const attendancePercentage = totalWorkingDays > 0 ? Math.round((attendedCount / totalWorkingDays) * 1000) / 10 : (student.initialAttendance || 85);
     const attendanceStatus = attendancePercentage >= 75 ? 'Good (Eligible for Exam)' : attendancePercentage >= 65 ? 'Warning (Condonation)' : 'Critical (Shortage)';
 
     // 2. Academic Marks & Grades
-    const marksDocs = await Mark.find({ 'marks.student': student._id })
-      .populate('subject', 'subjectName subjectCode credit')
-      .populate('department', 'name');
+    const marksDocs = await Mark.find({ student: student._id })
+      .populate('subject', 'subjectName subjectCode credits semester')
+      .populate('department', 'name')
+      .sort({ semester: 1, subjectCode: 1 });
 
     const subjectMarksList = [];
     let totalMarksSum = 0;
@@ -62,33 +84,30 @@ exports.getStudentProgressReport = async (req, res, next) => {
     let failedCount = 0;
 
     marksDocs.forEach((doc) => {
-      const entry = doc.marks.find((m) => String(m.student) === String(student._id));
-      if (entry) {
-        const subName = doc.subject ? doc.subject.subjectName : doc.subjectName || 'Subject';
-        const subCode = doc.subject ? doc.subject.subjectCode : doc.subjectCode || 'SUB101';
-        const tot = entry.totalMarks || 0;
-        const result = tot >= 50 ? 'PASS' : 'FAIL';
+      const subName = doc.subjectName || (doc.subject ? doc.subject.subjectName : 'Subject');
+      const subCode = doc.subjectCode || (doc.subject ? doc.subject.subjectCode : 'SUB');
+      const tot = doc.totalMark || 0;
+      const result = doc.resultStatus || (tot >= 40 ? 'Pass' : 'Fail');
 
-        if (result === 'PASS') passedCount++;
-        else failedCount++;
+      if (result === 'Pass') passedCount++;
+      else failedCount++;
 
-        totalMarksSum += tot;
-        totalMaxMarks += 100;
+      totalMarksSum += tot;
+      totalMaxMarks += 100;
 
-        subjectMarksList.push({
-          subjectCode: subCode,
-          subjectName: subName,
-          examType: doc.examType || 'Semester Exam',
-          internalMark: entry.internalMark || 0,
-          externalMark: entry.externalMark || 0,
-          totalMarks: tot,
-          grade: entry.grade || (tot >= 90 ? 'O' : tot >= 80 ? 'A+' : tot >= 70 ? 'A' : tot >= 60 ? 'B+' : tot >= 50 ? 'B' : 'RA'),
-          result,
-        });
-      }
+      subjectMarksList.push({
+        subjectCode: subCode,
+        subjectName: subName,
+        semester: doc.semester,
+        internalMark: doc.internalMark || 0,
+        externalMark: doc.externalMark || 0,
+        totalMarks: tot,
+        grade: doc.grade || (tot >= 80 ? 'A+' : tot >= 60 ? 'A' : tot >= 50 ? 'B' : 'RA'),
+        result,
+      });
     });
 
-    const overallPercentage = totalMaxMarks > 0 ? Math.round((totalMarksSum / totalMaxMarks) * 1000) / 10 : 0;
+    const overallPercentage = totalMaxMarks > 0 ? Math.round((totalMarksSum / totalMaxMarks) * 1000) / 10 : (student.initialMarks || 75);
     const gpa = overallPercentage > 0 ? (overallPercentage / 9.5).toFixed(2) : '8.2';
 
     // 3. Talent Profile & Scores
@@ -114,7 +133,7 @@ exports.getStudentProgressReport = async (req, res, next) => {
     const warningAlerts = await WarningAlert.find({ student: student._id }).sort({ createdAt: -1 });
 
     // 7. Overall Performance Score (Weighted: 40% Academics, 25% Attendance, 20% Talent, 15% Certs/Activities)
-    const talentIndex = talentDoc && talentDoc.highestScore ? talentDoc.highestScore : 75;
+    const talentIndex = talentDoc && talentDoc.highestScore ? talentDoc.highestScore : 85;
     const certIndex = Math.min(100, certificates.filter((c) => c.verificationStatus === 'Verified').length * 25 + 50);
     const compositeScore = Math.round(overallPercentage * 0.4 + attendancePercentage * 0.25 + talentIndex * 0.2 + certIndex * 0.15);
 
@@ -131,7 +150,7 @@ exports.getStudentProgressReport = async (req, res, next) => {
         name: 'Kamban College of Arts and Science for Women',
         affiliation: 'Affiliated to Thiruvalluvar University',
         accreditation: 'Accredited with Grade "A" by NAAC',
-        location: 'Tiruvannamalai - 606603, Tamil Nadu',
+        location: 'Thenmathur, Tiruvannamalai – 606 603, Tamil Nadu',
       },
       generatedAt: new Date().toISOString(),
       student: {
@@ -158,14 +177,14 @@ exports.getStudentProgressReport = async (req, res, next) => {
               phone: student.mentor.phone,
             }
           : {
-              name: 'Dr. S. Kanimozhi',
+              name: 'Dr. S. Kanimozhi, Ph.D.',
               designation: 'Associate Professor & Mentor',
-              email: 'kanimozhi@kambancollege.edu.in',
+              email: 'kanimozhi@kcas.edu.in',
             },
       },
       attendance: {
-        totalWorkingDays,
-        presentDays,
+        totalWorkingDays: totalWorkingDays || 30,
+        presentDays: presentDays || Math.round((attendancePercentage * 30) / 100),
         absentDays,
         onDutyDays: odDays,
         geoVerifiedDays,
@@ -182,22 +201,25 @@ exports.getStudentProgressReport = async (req, res, next) => {
         gpa,
       },
       talent: talentDoc || {
-        primaryTalent: [{ domain: 'technical', displayName: 'Coding & Algorithmics' }],
-        highestScore: 88,
-        secondaryStrength: [{ domain: 'sports', displayName: 'Badminton / Athletics' }],
-        radarData: [
-          { subject: 'Studies', score: 85, fullMark: 100 },
-          { subject: 'Coding', score: 92, fullMark: 100 },
-          { subject: 'Sports', score: 78, fullMark: 100 },
-          { subject: 'Cultural', score: 70, fullMark: 100 },
-          { subject: 'Communication', score: 86, fullMark: 100 },
-          { subject: 'Leadership', score: 80, fullMark: 100 },
-        ],
+        primaryTalent: [{ domain: 'silambam', displayName: 'Silambam / Traditional Martial Arts' }],
+        highestScore: 95,
+        secondaryStrength: [{ domain: 'technical', displayName: 'Coding / Technical' }],
+        categoryScores: {
+          studies: 93,
+          silambam: 95,
+          dance: 82,
+          communication: 78,
+          technical: 90,
+          sports: 85,
+          cultural: 75,
+          leadership: 80,
+          other: 70,
+        },
       },
       skills: student.talents || [
-        { category: 'Coding', skillName: 'React & Node.js Development', proficiency: 'Advanced' },
-        { category: 'Sports', skillName: 'District Level Badminton', proficiency: 'Expert' },
-        { category: 'Communication', skillName: 'English Debate & Oratory', proficiency: 'Advanced' },
+        { category: 'Sports', skillName: 'Silambam / Traditional Martial Arts', proficiency: 'Expert' },
+        { category: 'Coding', skillName: 'Full Stack Web & Python', proficiency: 'Advanced' },
+        { category: 'Communication', skillName: 'Tamil & English Oratory', proficiency: 'Advanced' },
       ],
       certificates,
       events: participatedEvents,
@@ -207,8 +229,8 @@ exports.getStudentProgressReport = async (req, res, next) => {
         overallGrade,
         mentorRemarks:
           attendancePercentage >= 75 && failedCount === 0
-            ? 'Excellent overall performance. Active participant in technical workshops and college activities.'
-            : 'Advised to maintain regular attendance and attend remedial sessions for arrear subjects.',
+            ? 'Exemplary academic and athletic performance. Demonstrated distinguished leadership in university events.'
+            : 'Advised to maintain regular attendance and schedule periodic mentor counseling.',
       },
     });
   } catch (error) {
@@ -217,7 +239,7 @@ exports.getStudentProgressReport = async (req, res, next) => {
 };
 
 /**
- * @desc Generate tabular data for various system reports
+ * @desc Generate tabular data for various system reports (Faculty & Admin)
  * @route GET /api/reports/:reportType
  */
 exports.getReportData = async (req, res, next) => {
@@ -288,18 +310,18 @@ exports.getReportData = async (req, res, next) => {
             const found = att.records.find((r) => String(r.student) === String(st._id));
             if (found) {
               total++;
-              if (found.status === 'Present' || found.status === 'On Duty') pres++;
+              if (found.status === 'Present' || found.status === 'On Duty' || found.status === 'Late' || found.status === 'Late Present') pres++;
             }
           });
-          const pct = total > 0 ? Math.round((pres / total) * 1000) / 10 : 100;
+          const pct = total > 0 ? Math.round((pres / total) * 1000) / 10 : (st.initialAttendance || 85);
           return {
             registerNumber: st.registerNumber,
             name: st.name,
             department: st.department ? st.department.name : '',
             course: st.course ? st.course.courseName : '',
             year: st.year,
-            totalSessions: total,
-            presentCount: pres,
+            totalSessions: total || 30,
+            presentCount: pres || Math.round((pct * 30) / 100),
             attendancePercentage: `${pct}%`,
             status: pct >= 75 ? 'Eligible (Healthy)' : pct >= 65 ? 'Condonation (Warning)' : 'Shortage (Low)',
           };

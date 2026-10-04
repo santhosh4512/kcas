@@ -4,20 +4,38 @@ const Attendance = require('../models/Attendance');
 const Mark = require('../models/Mark');
 const AuditLog = require('../models/AuditLog');
 
+// Helper to resolve student
+async function resolveStudent(req) {
+  if (req.user.referenceId) {
+    const s = await Student.findById(req.user.referenceId);
+    if (s) return s;
+  }
+  const byEmail = await Student.findOne({ email: req.user.email });
+  return byEmail;
+}
+
 /**
- * @desc Get all early warning alerts
+ * @desc Get early warning alerts (Students see only own alerts)
  * @route GET /api/warnings
  */
 exports.getWarningAlerts = async (req, res, next) => {
   try {
-    const { status, severity, alertType, department, mentorId, search } = req.query;
+    const { status, severity, alertType, department, mentorId, search, studentId } = req.query;
     const filter = {};
+
+    // Privacy rule
+    if (req.user.role === 'student') {
+      const student = await resolveStudent(req);
+      filter.student = student ? student._id : null;
+    } else {
+      if (studentId) filter.student = studentId;
+      if (department) filter.department = department;
+      if (mentorId) filter.mentor = mentorId;
+    }
 
     if (status && status !== 'all') filter.status = status;
     if (severity && severity !== 'all') filter.severity = severity;
     if (alertType && alertType !== 'all') filter.alertType = alertType;
-    if (department) filter.department = department;
-    if (mentorId) filter.mentor = mentorId;
 
     let warnings = await WarningAlert.find(filter)
       .sort({ createdAt: -1 })
@@ -49,7 +67,7 @@ exports.getWarningAlerts = async (req, res, next) => {
 };
 
 /**
- * @desc Run automated system scan to detect at-risk students & generate alerts
+ * @desc Run automated system scan to detect at-risk students & generate alerts (Faculty / Admin only)
  * @route POST /api/warnings/scan
  */
 exports.runEarlyWarningScan = async (req, res, next) => {
@@ -70,16 +88,16 @@ exports.runEarlyWarningScan = async (req, res, next) => {
         const rec = doc.records.find((r) => r.student.toString() === student._id.toString());
         if (rec) {
           totalSessions++;
-          if (rec.status === 'Present' || rec.status === 'On Duty') {
+          if (rec.status === 'Present' || rec.status === 'On Duty' || rec.status === 'Late' || rec.status === 'Late Present') {
             presentSessions++;
           }
         }
       });
 
-      const attendancePct = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 100;
+      const attendancePct = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : (student.initialAttendance || 85);
 
-      // 2. Check low attendance alert (< 75%)
-      if (totalSessions >= 5 && attendancePct < 75) {
+      // Check low attendance alert (< 75%)
+      if (attendancePct < 75) {
         const existingAlert = await WarningAlert.findOne({
           student: student._id,
           alertType: 'Low Attendance',
@@ -96,34 +114,18 @@ exports.runEarlyWarningScan = async (req, res, next) => {
             alertType: 'Low Attendance',
             severity: attendancePct < 65 ? 'Critical' : 'High',
             attendancePercentage: attendancePct,
-            reason: `Attendance dropped to ${attendancePct}% (${presentSessions}/${totalSessions} sessions). Requires mandatory mentor intervention.`,
+            reason: `Attendance dropped to ${attendancePct}% (${presentSessions}/${totalSessions || 30} sessions). Requires mandatory mentor intervention.`,
             status: 'Active',
           });
           generatedCount++;
         }
       }
 
-      // 3. Check marks / arrear failures
-      const marksDocs = await Mark.find({
-        'marks.student': student._id,
-      });
+      // 2. Check marks / arrear failures
+      const marksDocs = await Mark.find({ student: student._id });
+      let failedSubjects = marksDocs.filter((m) => m.resultStatus === 'Fail').length;
 
-      let failedSubjects = 0;
-      let totalMarksAccum = 0;
-      let countMarks = 0;
-
-      marksDocs.forEach((doc) => {
-        const m = doc.marks.find((mk) => mk.student.toString() === student._id.toString());
-        if (m) {
-          countMarks++;
-          totalMarksAccum += m.totalMarks || 0;
-          if ((m.totalMarks || 0) < 50) {
-            failedSubjects++;
-          }
-        }
-      });
-
-      if (failedSubjects >= 2) {
+      if (failedSubjects >= 1) {
         const existingMarkAlert = await WarningAlert.findOne({
           student: student._id,
           alertType: 'Academic Decline',
@@ -140,7 +142,7 @@ exports.runEarlyWarningScan = async (req, res, next) => {
             alertType: 'Academic Decline',
             severity: failedSubjects >= 3 ? 'Critical' : 'High',
             failedSubjectsCount: failedSubjects,
-            reason: `Student scored below 50% in ${failedSubjects} subjects. Academic counseling required.`,
+            reason: `Student scored below pass grade in ${failedSubjects} subject(s). Academic counseling required.`,
             status: 'Active',
           });
           generatedCount++;
@@ -159,7 +161,7 @@ exports.runEarlyWarningScan = async (req, res, next) => {
 };
 
 /**
- * @desc Add mentor note or update status of warning alert
+ * @desc Add mentor note or update status of warning alert (Faculty / Admin only)
  * @route PATCH /api/warnings/:id/action
  */
 exports.updateWarningAction = async (req, res, next) => {

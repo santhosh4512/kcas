@@ -10,6 +10,7 @@ import AIAdvisorWidget from '../../components/ui/AIAdvisorWidget';
 import CommandPalette from '../../components/ui/CommandPalette';
 import api from '../../lib/api';
 import { useAuth } from '../../lib/AuthContext';
+import { useNotification } from '../../lib/NotificationContext';
 import {
   Building2,
   Users,
@@ -30,6 +31,12 @@ import {
   BrainCircuit,
   Search,
   Activity,
+  FileCheck2,
+  Clock,
+  MapPin,
+  Compass,
+  ArrowRight,
+  ClipboardList,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -42,6 +49,11 @@ import {
   PieChart,
   Pie,
   Cell,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
   Legend,
 } from 'recharts';
 
@@ -49,77 +61,153 @@ const CHART_COLORS = ['#D4AF37', '#10B981', '#06B6D4', '#8C2234', '#8B5CF6', '#F
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { success, error, warning } = useNotification();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isAdvisorOpen, setIsAdvisorOpen] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
-  const [cohortAI, setCohortAI] = useState(null);
+  const [markingGps, setMarkingGps] = useState(false);
+  const [gpsCheckinResult, setGpsCheckinResult] = useState(null);
+
+  const isStudent = user?.role === 'student';
+
+  const fetchDashboard = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/dashboard/stats');
+      if (res.data && res.data.success) {
+        setStats(res.data);
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard metrics:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const [dashRes, aiRes] = await Promise.all([
-          api.get('/dashboard/stats'),
-          api.get('/ai-advisor/cohort-insights').catch(() => ({ data: null })),
-        ]);
-
-        if (dashRes.data && dashRes.data.success) {
-          setStats(dashRes.data);
-        }
-        if (aiRes.data && aiRes.data.success) {
-          setCohortAI(aiRes.data.data);
-        }
-      } catch (err) {
-        console.error('Error fetching dashboard metrics:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboard();
   }, []);
 
+  // Student Quick GPS Attendance Mark
+  const handleQuickGpsAttendance = async () => {
+    if (!navigator.geolocation) {
+      error('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setMarkingGps(true);
+    setGpsCheckinResult(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude, accuracy } = pos.coords;
+          const res = await api.post('/attendance/geo-checkin', {
+            latitude,
+            longitude,
+            accuracy,
+            status: 'Present',
+          });
+
+          if (res.data.success) {
+            success(`✅ ${res.data.message}`);
+            setGpsCheckinResult({
+              success: true,
+              message: res.data.message,
+              distance: res.data.distanceMeters,
+            });
+            fetchDashboard();
+          }
+        } catch (err) {
+          if (err.response?.status === 422 && err.response?.data?.requiresLateReason) {
+            warning('You are marking attendance after 9:00 AM. Please proceed to the Attendance module to enter your late reason.');
+            window.location.href = '/attendance';
+            return;
+          }
+          const msg = err.response?.data?.message || 'Attendance cannot be marked because you are outside the permitted college location.';
+          error(msg);
+          setGpsCheckinResult({
+            success: false,
+            message: msg,
+          });
+        } finally {
+          setMarkingGps(false);
+        }
+      },
+      (geoErr) => {
+        error(`GPS permission error: ${geoErr.message}`);
+        setMarkingGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // 9-Domain Radar data for student
+  const studentRadarData = stats?.myTalent?.categoryScores
+    ? [
+        { subject: 'Academic', score: stats.myTalent.categoryScores.studies || 0, fullMark: 100 },
+        { subject: 'Silambam', score: stats.myTalent.categoryScores.silambam || 0, fullMark: 100 },
+        { subject: 'Coding/Tech', score: stats.myTalent.categoryScores.technical || 0, fullMark: 100 },
+        { subject: 'Dance', score: stats.myTalent.categoryScores.dance || 0, fullMark: 100 },
+        { subject: 'Sports', score: stats.myTalent.categoryScores.sports || 0, fullMark: 100 },
+        { subject: 'Communication', score: stats.myTalent.categoryScores.communication || 0, fullMark: 100 },
+        { subject: 'Leadership', score: stats.myTalent.categoryScores.leadership || 0, fullMark: 100 },
+        { subject: 'Cultural', score: stats.myTalent.categoryScores.cultural || 0, fullMark: 100 },
+      ]
+    : [
+        { subject: 'Academic', score: 93, fullMark: 100 },
+        { subject: 'Silambam', score: 95, fullMark: 100 },
+        { subject: 'Coding/Tech', score: 90, fullMark: 100 },
+        { subject: 'Dance', score: 82, fullMark: 100 },
+        { subject: 'Sports', score: 85, fullMark: 100 },
+        { subject: 'Communication', score: 78, fullMark: 100 },
+        { subject: 'Leadership', score: 80, fullMark: 100 },
+        { subject: 'Cultural', score: 75, fullMark: 100 },
+      ];
+
   return (
     <DashboardLayout
-      title="Executive Intelligence Dashboard"
-      subtitle="Kamban College of Arts & Science — Smart Geofence & AI Talent Gateway"
+      title={isStudent ? 'My Academic & Talent Dashboard' : 'Executive Intelligence Dashboard'}
+      subtitle="Kamban College of Arts and Science for Women — CDMS Platform"
     >
-      {/* Grand Ultra-Modern Executive Hero Banner */}
+      {/* =========================================================================
+          HERO BANNER
+      ========================================================================= */}
       <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-[#090D16] via-[#0F172A] to-[#3B0B14] p-6 md:p-10 text-white shadow-2xl border-2 border-[#D4AF37]/40">
-        {/* Ambient Radial Lights */}
         <div className="absolute top-0 right-0 h-96 w-96 rounded-full bg-[#D4AF37]/15 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 left-40 h-80 w-80 rounded-full bg-[#8C2234]/25 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-4xl">
-          {/* Institutional Badge & AI Pill */}
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/60 bg-[#D4AF37]/15 px-4 py-1.5 text-xs font-classic font-bold tracking-widest text-[#F3E5AB] backdrop-blur-md shadow-sm">
               <Sparkles className="h-3.5 w-3.5 text-[#D4AF37] animate-spin" style={{ animationDuration: '6s' }} />
-              <span>KAMBAN COLLEGE OF ARTS & SCIENCE FOR WOMEN</span>
+              <span>KAMBAN COLLEGE OF ARTS AND SCIENCE FOR WOMEN</span>
             </div>
 
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              GPS Geofence: Active (1.0 km)
+              GPS Geofence: 1,000m (9:00 AM – 2:30 PM)
             </span>
           </div>
 
           <h2 className="font-classic text-2xl md:text-4xl font-black tracking-wide text-white leading-tight uppercase">
-            Welcome, {user?.name || 'Administrator'}
+            Welcome, {user?.name || 'Academic Scholar'}
           </h2>
 
           <p className="mt-2 text-xs md:text-sm text-slate-300 leading-relaxed font-sans max-w-2xl">
-            Centralized governance portal for Tiruvannamalai campus. Monitor real-time geofenced attendance radar, university marks distribution, AI student talent pathways, and official university circulars.
+            {isStudent
+              ? `You are logged in to your private student portal. Review your verified attendance rate, university marks, 9-domain talent radar, and faculty notices.`
+              : `Centralized department governance portal for Tiruvannamalai campus. Monitor real-time geofenced attendance, university marks, student talent discovery, and academic alerts.`}
           </p>
 
-          {/* Action Capsules Hub */}
+          {/* Quick Action Capsules */}
           <div className="mt-7 flex flex-wrap items-center gap-3 font-sans">
             <button
               onClick={() => setIsCommandOpen(true)}
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#D4AF37] via-[#F5D77F] to-[#D4AF37] px-4 py-2.5 text-xs font-black text-[#090D16] shadow-lg shadow-[#D4AF37]/25 hover:scale-102 transition-all border border-[#FFF8DC]"
             >
               <Search className="h-4 w-4 text-[#090D16]" />
-              <span>Command Palette (Ctrl+K)</span>
+              <span>Quick Navigation (Ctrl+K)</span>
             </button>
 
             <Link
@@ -127,466 +215,308 @@ export default function DashboardPage() {
               className="inline-flex items-center gap-2 rounded-2xl border border-emerald-500/40 bg-slate-900/80 px-4 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-950/40 hover:border-emerald-400 transition-all backdrop-blur-md"
             >
               <Navigation className="h-4 w-4 text-emerald-400" />
-              <span>Live GPS Radar</span>
-            </Link>
-
-            <Link
-              href="/students"
-              className="inline-flex items-center gap-2 rounded-2xl border border-[#D4AF37]/40 bg-slate-900/80 px-4 py-2 text-xs font-bold text-[#F3E5AB] hover:bg-slate-800 hover:border-[#D4AF37] transition-all backdrop-blur-md"
-            >
-              <FileSpreadsheet className="h-4 w-4 text-[#D4AF37]" />
-              <span>Import College Excel</span>
-            </Link>
-
-            <Link
-              href="/mentor"
-              className="inline-flex items-center gap-2 rounded-2xl border border-blue-500/40 bg-slate-900/80 px-4 py-2 text-xs font-bold text-cyan-300 hover:bg-blue-950/40 transition-all backdrop-blur-md"
-            >
-              <Users className="h-4 w-4 text-cyan-400" />
-              <span>Mentor Portal</span>
-            </Link>
-
-            <Link
-              href="/early-warnings"
-              className="inline-flex items-center gap-2 rounded-2xl border border-rose-500/40 bg-slate-900/80 px-4 py-2 text-xs font-bold text-rose-300 hover:bg-rose-950/40 transition-all backdrop-blur-md"
-            >
-              <Zap className="h-4 w-4 text-rose-400" />
-              <span>Early Warnings</span>
-            </Link>
-
-            <Link
-              href="/progress-reports"
-              className="inline-flex items-center gap-2 rounded-2xl border border-purple-500/40 bg-slate-900/80 px-4 py-2 text-xs font-bold text-purple-300 hover:bg-purple-950/40 transition-all backdrop-blur-md"
-            >
-              <Award className="h-4 w-4 text-purple-300" />
-              <span>Progress Reports</span>
-            </Link>
-
-            <Link
-              href="/notices"
-              className="inline-flex items-center gap-2 rounded-2xl border border-amber-500/40 bg-slate-900/80 px-4 py-2 text-xs font-bold text-amber-300 hover:bg-amber-950/40 transition-all backdrop-blur-md"
-            >
-              <ScrollText className="h-4 w-4 text-amber-400" />
-              <span>Notices</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* AI SMART CAMPUS INSIGHTS & GPS RADAR DUAL WIDGET */}
-      <div className="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: AI Cohort Intelligence Hub */}
-        <div className="lg:col-span-2 rounded-3xl border-2 border-[#D4AF37]/35 bg-gradient-to-r from-[#090D16] via-[#0F172A] to-[#1E293B] p-6 text-white shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D4AF37]/25 pb-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-2xl bg-[#D4AF37]/20 border border-[#D4AF37] flex items-center justify-center text-[#F3E5AB]">
-                <BrainCircuit className="h-5 w-5 text-[#D4AF37]" />
-              </div>
-              <div>
-                <h3 className="font-classic text-sm md:text-base font-black text-[#F3E5AB] uppercase tracking-wide">
-                  AI Institutional Performance Engine
-                </h3>
-                <p className="text-xs text-slate-400">Automated predictions, exam readiness & career pathways</p>
-              </div>
-            </div>
-            <span className="font-classic text-[10px] font-bold text-[#D4AF37] bg-[#D4AF37]/15 px-3 py-1 rounded-full border border-[#D4AF37]/40 uppercase tracking-wider self-start sm:self-auto">
-              Smart Copilot
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-            <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800">
-              <span className="text-[10px] font-bold uppercase text-slate-400">Average Readiness</span>
-              <p className="text-xl font-black text-emerald-400 mt-1">{cohortAI?.averageCampusReadiness || 84.6}%</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">University Exam Quotient</p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800">
-              <span className="text-[10px] font-bold uppercase text-slate-400">Talent Quotient</span>
-              <p className="text-xl font-black text-[#F3E5AB] mt-1">{cohortAI?.highTalentPercentage || 88}%</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">High Potential Cohort</p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800">
-              <span className="text-[10px] font-bold uppercase text-slate-400">Attendance Integrity</span>
-              <p className="text-xl font-black text-cyan-400 mt-1">99.4%</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">GPS Verification Success</p>
-            </div>
-          </div>
-
-          <div className="space-y-2 text-xs">
-            {(cohortAI?.smartInsights || [
-              '88% of enrolled students maintain attendance above the mandatory 75% threshold.',
-              'Technical Coding and Public Speaking emerged as the top student talents.',
-              'Kamban College GPS Geofencing radar is active at 1.0 km radius (Velu Nagar, Mathur, Tiruvannamalai).',
-            ]).map((insight, idx) => (
-              <div key={idx} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/60">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span className="text-slate-300">{insight}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right 1 Col: Live GPS Campus Geofence Radar Card */}
-        <div className="rounded-3xl border-2 border-emerald-500/35 bg-gradient-to-b from-[#090D16] via-[#0F172A] to-[#0A192F] p-6 text-white shadow-xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between border-b border-emerald-500/25 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 radar-live-ring" />
-                <h4 className="font-classic text-xs font-bold text-emerald-300 uppercase tracking-wider">
-                  Campus Geofence Radar
-                </h4>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-400 font-mono">12.1903° N, 79.0839° E</span>
-            </div>
-
-            <div className="relative h-32 w-full rounded-2xl bg-slate-900/90 border border-emerald-500/30 flex items-center justify-center overflow-hidden mb-4">
-              {/* Radar Rings Animation */}
-              <div className="absolute h-28 w-28 rounded-full border border-emerald-500/20 animate-ping" />
-              <div className="absolute h-20 w-20 rounded-full border border-emerald-500/40" />
-              <div className="absolute h-10 w-10 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center">
-                <Navigation className="h-4 w-4 text-emerald-300 animate-pulse" />
-              </div>
-              <span className="absolute bottom-2 text-[10px] font-bold text-emerald-400/80">Kamban College Main Campus</span>
-            </div>
-
-            <div className="space-y-1.5 text-xs">
-              <div className="flex items-center justify-between text-slate-300">
-                <span>Campus Geofence:</span>
-                <span className="font-bold text-emerald-300">1,000 Meters (1.0 km)</span>
-              </div>
-              <div className="flex items-center justify-between text-slate-300">
-                <span>Location:</span>
-                <span className="font-bold text-slate-200">Velu Nagar, Mathur, SH 9</span>
-              </div>
-              <div className="flex items-center justify-between text-slate-300">
-                <span>Smart Attendance:</span>
-                <span className="font-bold text-cyan-300">GPS Verified Only</span>
-              </div>
-            </div>
-          </div>
-
-          <Link
-            href="/attendance"
-            className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-900/50 transition"
-          >
-            <CalendarCheck className="h-4 w-4" />
-            <span>Open GPS Check-In Radar</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* 8 Modern Bento KPI Cards */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Departments"
-          value={stats?.kpis?.totalDepartments || 4}
-          subtitle="Computer Science, AI, IT, BCA"
-          icon={Building2}
-          color="maroon"
-        />
-        <StatCard
-          title="Student Strength"
-          value={stats?.kpis?.totalStudents || 0}
-          subtitle="Enrolled College Scholars"
-          icon={GraduationCap}
-          color="emerald"
-        />
-        <StatCard
-          title="Faculty Roster"
-          value={stats?.kpis?.totalFaculty || 0}
-          subtitle="Mentors & Academic Staff"
-          icon={Users}
-          color="navy"
-        />
-        <StatCard
-          title="Talents Assessed"
-          value={stats?.kpis?.studentsWithTalent || 0}
-          subtitle="7-Domain AI Intelligence"
-          icon={Sparkles}
-          color="gold"
-        />
-        <StatCard
-          title="Degree Programs"
-          value={stats?.kpis?.totalCourses || 3}
-          subtitle="B.Sc CS, AIDS, BCA"
-          icon={BookOpen}
-          color="purple"
-        />
-        <StatCard
-          title="Subject Units"
-          value={stats?.kpis?.totalSubjects || 6}
-          subtitle="Semester Curriculum Units"
-          icon={Award}
-          color="blue"
-        />
-        <StatCard
-          title="University Pass %"
-          value={`${stats?.kpis?.overallPassPercentage || 92}%`}
-          subtitle="Thiruvalluvar Univ Standard"
-          icon={TrendingUp}
-          color="emerald"
-        />
-        <StatCard
-          title="Attendance Integrity"
-          value={`${stats?.kpis?.averageAttendance || 88}%`}
-          subtitle="Geo-Verified Classroom Rate"
-          icon={CalendarCheck}
-          color="gold"
-        />
-      </div>
-
-      {/* 4 Interactive Analytics Charts */}
-      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Chart 1: Talent Distribution */}
-        <ChartCard
-          title="Talent Intelligence Distribution"
-          subtitle="Multi-domain student aptitude spectrum across the institution"
-          action={
-            <Link
-              href="/talent"
-              className="inline-flex items-center gap-1 text-xs font-bold text-[#D4AF37] hover:text-white transition-colors font-classic"
-            >
-              <span>Explore AI</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
-          }
-          loading={loading}
-        >
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={stats?.charts?.talentDistribution || []} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
-              <XAxis dataKey="category" tick={{ fontSize: 10, fill: '#94A3B8' }} interval={0} angle={-20} textAnchor="end" />
-              <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#0F172A',
-                  borderColor: '#D4AF37',
-                  borderRadius: '16px',
-                  color: '#FFFFFF',
-                  fontWeight: 600,
-                  fontSize: '12px',
-                }}
-              />
-              <Bar dataKey="count" name="Students" radius={[8, 8, 0, 0]}>
-                {(stats?.charts?.talentDistribution || []).map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Chart 2: Students By Department */}
-        <ChartCard
-          title="Department Student Capacity"
-          subtitle="Enrolled student volume per academic department"
-          action={
-            <Link
-              href="/departments"
-              className="inline-flex items-center gap-1 text-xs font-bold text-[#D4AF37] hover:text-white transition-colors font-classic"
-            >
-              <span>Departments</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
-          }
-          loading={loading}
-        >
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={stats?.charts?.studentsByDepartment || []} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
-              <XAxis dataKey="code" tick={{ fontSize: 11, fill: '#94A3B8', fontWeight: 700 }} />
-              <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#0F172A',
-                  borderColor: '#D4AF37',
-                  borderRadius: '16px',
-                  color: '#FFFFFF',
-                  fontWeight: 600,
-                  fontSize: '12px',
-                }}
-              />
-              <Bar dataKey="students" fill="#8C2234" radius={[8, 8, 0, 0]} name="Students Count" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Chart 3: Academic Performance Breakdown */}
-        <ChartCard
-          title="University Grade Classification"
-          subtitle="Cumulative evaluation distribution across grading tiers"
-          loading={loading}
-        >
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={stats?.charts?.academicOverview || []} layout="vertical" margin={{ top: 10, right: 20, left: 40, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 10, fill: '#94A3B8' }} allowDecimals={false} />
-              <YAxis dataKey="tier" type="category" tick={{ fontSize: 10, fill: '#E2E8F0', fontWeight: 600 }} width={95} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#0F172A',
-                  borderColor: '#D4AF37',
-                  borderRadius: '16px',
-                  color: '#FFFFFF',
-                  fontWeight: 600,
-                  fontSize: '12px',
-                }}
-              />
-              <Bar dataKey="count" fill="#D4AF37" radius={[0, 8, 8, 0]} name="Evaluations" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Chart 4: Students by Year */}
-        <ChartCard
-          title="Cohort Distribution by Year"
-          subtitle="Enrolled student proportion across undergraduate years"
-          loading={loading}
-        >
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={stats?.charts?.studentsByYear || []}
-                cx="50%"
-                cy="50%"
-                innerRadius={65}
-                outerRadius={100}
-                paddingAngle={4}
-                dataKey="students"
-                nameKey="year"
-                label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                labelLine={false}
-              >
-                {(stats?.charts?.studentsByYear || []).map((_, index) => (
-                  <Cell key={`cell-yr-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ backgroundColor: '#0F172A', borderColor: '#D4AF37', borderRadius: '16px' }} />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </div>
-
-      {/* Bottom Section: Transaction Ledger & Operations Hub */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Recent Activity Audit Ledger */}
-        <div className="rounded-3xl border border-[#D4AF37]/25 bg-slate-900/80 p-6 backdrop-blur-xl shadow-xl lg:col-span-2 text-white">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
-            <div>
-              <h3 className="font-classic text-base font-black text-white tracking-wide uppercase">Institutional Transaction Ledger</h3>
-              <p className="text-xs text-slate-400 mt-0.5 font-sans">Live audit registry & security record log</p>
-            </div>
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950 text-emerald-300 text-xs font-bold border border-emerald-800">
-              <Zap className="h-3 w-3 text-emerald-400 animate-pulse" />
-              Live Ledger
-            </span>
-          </div>
-
-          <div className="divide-y divide-slate-800/80">
-            {stats?.recentActivity?.length > 0 ? (
-              stats.recentActivity.map((act) => (
-                <div key={act._id} className="flex items-start gap-3.5 py-3.5 hover:bg-slate-800/40 rounded-xl px-2 transition-colors">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 mt-0.5 flex-shrink-0 shadow-xs">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-white">
-                      {act.action.replace(/_/g, ' ')}
-                    </p>
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5 font-sans">
-                      Recorded by <span className="font-semibold text-slate-200">{act.performerName}</span> ({act.performerRole}) &bull; Module: {act.module}
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-bold text-[#D4AF37] whitespace-nowrap bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-700 font-mono">
-                    {new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="py-10 text-center text-xs font-medium text-slate-500">No ledger transactions recorded in this cycle.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Operations Hub */}
-        <div className="rounded-3xl border border-[#D4AF37]/25 bg-slate-900/80 p-6 backdrop-blur-xl shadow-xl text-white">
-          <div className="border-b border-slate-800 pb-4 mb-4">
-            <h3 className="font-classic text-base font-black text-white tracking-wide uppercase">Administrative Hub</h3>
-            <p className="text-xs text-slate-400 mt-0.5 font-sans">Direct module access</p>
-          </div>
-
-          <div className="space-y-3 font-sans">
-            <Link
-              href="/students"
-              className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-[#D4AF37] hover:bg-slate-800/80 transition-all duration-200 group shadow-xs"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-blue-950 text-blue-400 border border-blue-800 shadow-xs">
-                  <GraduationCap className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white group-hover:text-[#F3E5AB] transition-colors">Register Student</p>
-                  <p className="text-[10px] text-slate-400">Excel / CSV Batch intake</p>
-                </div>
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-[#D4AF37] group-hover:translate-x-0.5 transition-all" />
+              <span>{isStudent ? 'My Attendance & GPS' : 'Attendance & GPS'}</span>
             </Link>
 
             <Link
               href="/marks"
-              className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-emerald-500 hover:bg-slate-800/80 transition-all duration-200 group shadow-xs"
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#D4AF37]/40 bg-slate-900/80 px-4 py-2 text-xs font-bold text-[#F3E5AB] hover:bg-slate-800 hover:border-[#D4AF37] transition-all backdrop-blur-md"
             >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-950 text-emerald-400 border border-emerald-800 shadow-xs">
-                  <Award className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors">Record Marks</p>
-                  <p className="text-[10px] text-slate-400">Internal & Univ assessments</p>
-                </div>
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+              <Award className="h-4 w-4 text-[#D4AF37]" />
+              <span>{isStudent ? 'My Marks & Results' : 'Marks & Results'}</span>
             </Link>
 
             <Link
               href="/talent"
-              className="flex items-center justify-between p-3.5 rounded-2xl border-2 border-[#D4AF37]/50 bg-slate-900/60 hover:border-[#D4AF37] hover:bg-slate-800/80 transition-all duration-200 group shadow-xs"
+              className="inline-flex items-center gap-2 rounded-2xl border border-purple-500/40 bg-slate-900/80 px-4 py-2 text-xs font-bold text-purple-300 hover:bg-purple-950/40 transition-all backdrop-blur-md"
             >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-[#D4AF37] text-[#090D16] shadow-xs">
-                  <Sparkles className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-black text-[#F3E5AB] group-hover:text-white transition-colors">Talent AI Evaluation</p>
-                  <p className="text-[10px] text-slate-400">7-category radar profile</p>
-                </div>
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-[#D4AF37] group-hover:translate-x-0.5 transition-all" />
+              <Sparkles className="h-4 w-4 text-purple-300" />
+              <span>{isStudent ? 'My Talent Intelligence' : 'Talent Intelligence'}</span>
             </Link>
 
             <Link
-              href="/reports"
-              className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-purple-500 hover:bg-slate-800/80 transition-all duration-200 group shadow-xs"
+              href="/progress-reports"
+              className="inline-flex items-center gap-2 rounded-2xl border border-cyan-500/40 bg-slate-900/80 px-4 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-950/40 transition-all backdrop-blur-md"
             >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-purple-950 text-purple-400 border border-purple-800 shadow-xs">
-                  <FileSpreadsheet className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white group-hover:text-purple-300 transition-colors">Export Ledger</p>
-                  <p className="text-[10px] text-slate-400">Certified Reports & Excel sheets</p>
-                </div>
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-purple-400 group-hover:translate-x-0.5 transition-all" />
+              <ClipboardList className="h-4 w-4 text-cyan-300" />
+              <span>{isStudent ? 'My Progress Report' : 'Progress Reports'}</span>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Interactive Command Palette Trigger */}
+      {/* =========================================================================
+          STUDENT SPECIFIC VIEW
+      ========================================================================= */}
+      {isStudent ? (
+        <div className="space-y-8">
+          {/* Top 4 Bento KPI Cards */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl border border-emerald-500/30 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase text-slate-500">My Attendance</span>
+                <div className="rounded-xl bg-emerald-100 p-2 text-emerald-700">
+                  <CalendarCheck className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="mt-3 text-3xl font-black text-slate-900">{stats?.myAttendance?.percentage || 94}%</p>
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <span className="text-slate-500">Today: {stats?.myAttendance?.todayStatus || 'Present'}</span>
+                <span className="font-bold text-emerald-600">{stats?.myAttendance?.status || 'Healthy'}</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[#D4AF37]/40 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase text-slate-500">Academic Average</span>
+                <div className="rounded-xl bg-amber-100 p-2 text-[#701A28]">
+                  <Award className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="mt-3 text-3xl font-black text-slate-900">{stats?.myAcademics?.academicAverage || 93}%</p>
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <span className="text-slate-500">Passed: {stats?.myAcademics?.passedCount || 4} Subjects</span>
+                <span className="font-bold text-emerald-600">Exemplary</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-purple-500/30 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase text-slate-500">Primary Strength</span>
+                <div className="rounded-xl bg-purple-100 p-2 text-purple-700">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="mt-3 text-xl font-black text-purple-900 truncate">
+                {stats?.myTalent?.primaryTalent?.[0]?.displayName || 'Silambam (95%)'}
+              </p>
+              <div className="mt-2 text-xs text-slate-500 truncate">
+                Secondary: {stats?.myTalent?.secondaryStrength?.[0]?.displayName || 'Coding (90%)'}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-cyan-500/30 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase text-slate-500">Certificates & Awards</span>
+                <div className="rounded-xl bg-cyan-100 p-2 text-cyan-700">
+                  <FileCheck2 className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="mt-3 text-3xl font-black text-slate-900">{stats?.myCertificatesCount || 2}</p>
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <span className="text-slate-500">Verified Accreditations</span>
+                <span className="font-bold text-cyan-600">State Level</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick GPS Check-In Radar + My Profile Strip */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* GPS Check-in Card */}
+            <div className="rounded-3xl border-2 border-emerald-500/35 bg-gradient-to-b from-[#090D16] via-[#0F172A] to-[#0A192F] p-6 text-white shadow-xl flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between border-b border-emerald-500/25 pb-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping" />
+                    <h4 className="font-classic text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                      Live GPS Attendance Check-In
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-400 font-mono">12.1906° N, 79.0838° E</span>
+                </div>
+
+                <p className="text-xs text-slate-300 leading-relaxed mb-4">
+                  Allowed Campus Geofence: <strong>1,000 Meters</strong>. Timing: <strong>9:00 AM – 2:30 PM</strong>.
+                </p>
+
+                {gpsCheckinResult && (
+                  <div
+                    className={`p-3 rounded-xl mb-4 text-xs font-bold border ${
+                      gpsCheckinResult.success
+                        ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
+                        : 'bg-rose-950/60 border-rose-500/50 text-rose-300'
+                    }`}
+                  >
+                    {gpsCheckinResult.message}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleQuickGpsAttendance}
+                disabled={markingGps}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-900/50 transition disabled:opacity-50"
+              >
+                <Navigation className="h-4 w-4" />
+                <span>{markingGps ? 'Verifying Coordinates...' : 'Mark Present (GPS Check)'}</span>
+              </button>
+            </div>
+
+            {/* 9-Domain Talent Radar Chart Card */}
+            <div className="lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[#701A28]" />
+                  <h3 className="font-bold text-sm text-slate-900">My 9-Domain Talent Intelligence Radar</h3>
+                </div>
+                <Link href="/talent" className="text-xs font-bold text-[#701A28] hover:underline flex items-center gap-1">
+                  Full Evaluation <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart cx="50%" cy="50%" outerRadius="75%" data={studentRadarData}>
+                    <PolarGrid stroke="#E2E8F0" />
+                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 11, fontWeight: 'bold' }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94A3B8', fontSize: 9 }} />
+                    <Radar name="My Score" dataKey="score" stroke="#701A28" fill="#701A28" fillOpacity={0.4} />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Suggestions */}
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <span className="text-[11px] font-bold uppercase text-slate-500">Talent Development Pathway:</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1.5 text-xs text-slate-700">
+                  {(stats?.myTalent?.suggestions || [
+                    'Advanced traditional weapon rotation & sparring masterclasses',
+                    'State Level Silambam Championship participation',
+                    'Full stack coding hackathon leadership',
+                  ]).slice(0, 2).map((sugg, i) => (
+                    <div key={i} className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 border border-slate-100">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span className="truncate">{sugg}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Academic Marks & Subjects Table */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900">Enrolled Subjects & Latest University Marks</h3>
+                <p className="text-xs text-slate-500">B.Sc. Computer Science • Semester 3</p>
+              </div>
+              <Link href="/marks" className="text-xs font-bold text-[#701A28] hover:underline">
+                View All Results →
+              </Link>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase text-[10px]">
+                    <th className="p-3">Subject Code</th>
+                    <th className="p-3">Subject Name</th>
+                    <th className="p-3">Internal (25)</th>
+                    <th className="p-3">External (75)</th>
+                    <th className="p-3">Total (100)</th>
+                    <th className="p-3">Grade</th>
+                    <th className="p-3">Result</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(stats?.myAcademics?.marks?.length ? stats.myAcademics.marks : [
+                    { subjectCode: 'CS301', subjectName: 'Data Structures & Algorithms', internalMark: 22, externalMark: 66, totalMark: 88, grade: 'A+', resultStatus: 'Pass' },
+                    { subjectCode: 'CS302', subjectName: 'Database Management Systems', internalMark: 23, externalMark: 69, totalMark: 92, grade: 'O', resultStatus: 'Pass' },
+                    { subjectCode: 'CS303', subjectName: 'Operating Systems & Linux', internalMark: 21, externalMark: 64, totalMark: 85, grade: 'A+', resultStatus: 'Pass' },
+                    { subjectCode: 'CS304', subjectName: 'Computer Networks', internalMark: 24, externalMark: 70, totalMark: 94, grade: 'O', resultStatus: 'Pass' },
+                  ]).map((m, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50 transition">
+                      <td className="p-3 font-mono font-bold text-slate-700">{m.subjectCode}</td>
+                      <td className="p-3 font-semibold text-slate-900">{m.subjectName}</td>
+                      <td className="p-3 text-slate-600">{m.internalMark}/25</td>
+                      <td className="p-3 text-slate-600">{m.externalMark}/75</td>
+                      <td className="p-3 font-bold text-slate-900">{m.totalMark}/100</td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 rounded-md font-bold bg-amber-100 text-amber-900 border border-amber-200 text-[10px]">
+                          {m.grade}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800 text-[10px]">
+                          {m.resultStatus || 'Pass'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* =========================================================================
+            FACULTY & ADMIN VIEW
+        ========================================================================= */
+        <div className="space-y-8">
+          {/* Bento KPI Grid */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Total Enrolled Students"
+              value={stats?.kpis?.totalStudents || 0}
+              subtitle="All Active Academic Cohorts"
+              icon={GraduationCap}
+              color="emerald"
+            />
+            <StatCard
+              title="Today's Present"
+              value={stats?.kpis?.todayPresent || 0}
+              subtitle={`Late: ${stats?.kpis?.todayLate || 0} • Absent: ${stats?.kpis?.todayAbsent || 0}`}
+              icon={CalendarCheck}
+              color="amber"
+            />
+            <StatCard
+              title="GPS Location Alerts"
+              value={stats?.kpis?.locationAlertsCount || 0}
+              subtitle="Geofence Exceptions & Alerts"
+              icon={AlertTriangle}
+              color="rose"
+            />
+            <StatCard
+              title="Talent Profiled"
+              value={stats?.kpis?.studentsWithTalent || 0}
+              subtitle="Evaluated across 9 domains"
+              icon={Sparkles}
+              color="maroon"
+            />
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ChartCard title="Department-Wise Student Strength" subtitle="Live cohort distribution">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={stats?.charts?.studentsByDepartment || []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                  <XAxis dataKey="code" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="students" fill="#701A28" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            <ChartCard title="Dominant Student Talent Categories" subtitle="Aggregated institutional strengths">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={stats?.charts?.talentDistribution || []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                  <XAxis dataKey="category" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#D4AF37" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+        </div>
+      )}
+
+      {/* Command Palette */}
       <CommandPalette isOpen={isCommandOpen} onClose={() => setIsCommandOpen(false)} />
     </DashboardLayout>
   );

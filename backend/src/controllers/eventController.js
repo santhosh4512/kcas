@@ -2,8 +2,29 @@ const Event = require('../models/Event');
 const Student = require('../models/Student');
 const AuditLog = require('../models/AuditLog');
 
+// Helper to compute event status dynamically based on current date & time
+function computeEventStatus(event) {
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+
+    if (!event.eventDate) return event.status || 'Upcoming';
+
+    if (event.eventDate > todayStr) {
+      return 'Upcoming';
+    } else if (event.eventDate < todayStr) {
+      return 'Completed';
+    } else {
+      // Event is today: check start & end times if available
+      return 'Ongoing';
+    }
+  } catch (e) {
+    return event.status || 'Upcoming';
+  }
+}
+
 /**
- * @desc Get all events
+ * @desc Get all events with dynamic automatic status calculation
  * @route GET /api/events
  */
 exports.getEvents = async (req, res, next) => {
@@ -12,7 +33,6 @@ exports.getEvents = async (req, res, next) => {
     const filter = {};
 
     if (type && type !== 'all') filter.type = type;
-    if (status && status !== 'all') filter.status = status;
     if (department) filter.department = department;
 
     if (search) {
@@ -28,10 +48,23 @@ exports.getEvents = async (req, res, next) => {
       .populate('department', 'name code')
       .populate('coordinator', 'name designation email');
 
+    // Enrich with dynamic status
+    let enriched = events.map((ev) => {
+      const dynamicStatus = computeEventStatus(ev);
+      return {
+        ...ev.toObject(),
+        status: dynamicStatus,
+      };
+    });
+
+    if (status && status !== 'all') {
+      enriched = enriched.filter((e) => e.status.toLowerCase() === status.toLowerCase());
+    }
+
     res.status(200).json({
       success: true,
-      count: events.length,
-      data: events,
+      count: enriched.length,
+      data: enriched,
     });
   } catch (err) {
     next(err);
@@ -53,14 +86,22 @@ exports.getEventById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Event not found' });
     }
 
-    res.status(200).json({ success: true, data: event });
+    const dynamicStatus = computeEventStatus(event);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...event.toObject(),
+        status: dynamicStatus,
+      },
+    });
   } catch (err) {
     next(err);
   }
 };
 
 /**
- * @desc Create new event
+ * @desc Create new event (Faculty / Admin only)
  * @route POST /api/events
  */
 exports.createEvent = async (req, res, next) => {
@@ -91,7 +132,7 @@ exports.createEvent = async (req, res, next) => {
 };
 
 /**
- * @desc Update event
+ * @desc Update event (Faculty / Admin only)
  * @route PUT /api/events/:id
  */
 exports.updateEvent = async (req, res, next) => {
@@ -117,7 +158,7 @@ exports.updateEvent = async (req, res, next) => {
 };
 
 /**
- * @desc Delete event
+ * @desc Delete event (Faculty / Admin only)
  * @route DELETE /api/events/:id
  */
 exports.deleteEvent = async (req, res, next) => {
@@ -139,13 +180,21 @@ exports.deleteEvent = async (req, res, next) => {
 };
 
 /**
- * @desc Register a student for an event (1-Click Student Registration)
+ * @desc Register a student for an event
  * @route POST /api/events/:id/register
  */
 exports.registerStudentForEvent = async (req, res, next) => {
   try {
-    const { studentId } = req.body;
-    const targetStudentId = studentId || (req.user && req.user.referenceId);
+    let targetStudentId;
+    if (req.user.role === 'student') {
+      if (req.user.referenceId) targetStudentId = req.user.referenceId;
+      else {
+        const s = await Student.findOne({ email: req.user.email });
+        targetStudentId = s ? s._id : null;
+      }
+    } else {
+      targetStudentId = req.body.studentId || req.user.referenceId;
+    }
 
     if (!targetStudentId) {
       return res.status(400).json({ success: false, message: 'Student ID is required for registration' });
@@ -168,12 +217,6 @@ exports.registerStudentForEvent = async (req, res, next) => {
 
     if (isAlreadyRegistered) {
       return res.status(400).json({ success: false, message: 'Student is already registered for this event' });
-    }
-
-    // Check capacity
-    const activeParticipantsCount = event.participants.filter((p) => p.status !== 'Cancelled').length;
-    if (activeParticipantsCount >= event.maxParticipants) {
-      return res.status(400).json({ success: false, message: 'Event has reached maximum participant capacity' });
     }
 
     event.participants.push({
@@ -203,8 +246,16 @@ exports.registerStudentForEvent = async (req, res, next) => {
  */
 exports.cancelRegistration = async (req, res, next) => {
   try {
-    const { studentId } = req.body;
-    const targetStudentId = studentId || (req.user && req.user.referenceId);
+    let targetStudentId;
+    if (req.user.role === 'student') {
+      if (req.user.referenceId) targetStudentId = req.user.referenceId;
+      else {
+        const s = await Student.findOne({ email: req.user.email });
+        targetStudentId = s ? s._id : null;
+      }
+    } else {
+      targetStudentId = req.body.studentId || req.user.referenceId;
+    }
 
     const event = await Event.findById(req.params.id);
     if (!event) {
@@ -212,7 +263,7 @@ exports.cancelRegistration = async (req, res, next) => {
     }
 
     const participantIndex = event.participants.findIndex(
-      (p) => p.student.toString() === targetStudentId.toString()
+      (p) => p.student.toString() === String(targetStudentId)
     );
 
     if (participantIndex === -1) {

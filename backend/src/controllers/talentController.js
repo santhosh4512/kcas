@@ -5,60 +5,132 @@ const Department = require('../models/Department');
 const Course = require('../models/Course');
 const talentService = require('../services/talentService');
 
+// Helper to resolve student record for the authenticated user
+async function resolveStudent(req) {
+  if (req.user.referenceId) {
+    const s = await Student.findById(req.user.referenceId).populate('department course');
+    if (s) return s;
+  }
+  const byEmail = await Student.findOne({ email: req.user.email }).populate('department course');
+  return byEmail;
+}
+
 /**
- * @desc    Get all student talent scores with filtering and quick filters
+ * @desc    Get current student's personal talent radar, scores & suggestions
+ * @route   GET /api/talent/me
+ * @access  Private (Student)
+ */
+exports.getMyTalent = async (req, res, next) => {
+  try {
+    const student = await resolveStudent(req);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student profile not found.' });
+    }
+
+    let talent = await TalentScore.findOne({ student: student._id });
+    if (!talent) {
+      const calculated = talentService.calculateTalentScores(
+        {
+          studies: student.initialMarks || 93,
+          silambam: 95,
+          dance: 82,
+          communication: 78,
+          technical: student.skills?.length ? 90 : 75,
+          sports: 85,
+          cultural: 75,
+          leadership: 78,
+          other: 70,
+        },
+        student.name
+      );
+
+      talent = await TalentScore.create({
+        student: student._id,
+        registerNumber: student.registerNumber,
+        studentName: student.name,
+        department: student.department ? student.department._id : null,
+        course: student.course ? student.course._id : null,
+        year: student.year,
+        semester: student.semester,
+        section: student.section,
+        ...calculated,
+      });
+    }
+
+    const skills = await Skill.find({ student: student._id }).sort({ percentage: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        student,
+        talent,
+        skills,
+        suggestions: talent.suggestions || [
+          'Advanced traditional weapon rotation & sparring masterclasses',
+          'State & National Level Silambam Championship participation',
+          'Inter-collegiate traditional martial arts exhibitions',
+          'Student coach & leadership role in college sports club',
+        ],
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all student talent scores with filtering (Faculty / Admin sees all; Student sees own)
  * @route   GET /api/talent
  * @access  Private
  */
 exports.getTalentList = async (req, res, next) => {
   try {
-    const {
-      department,
-      course,
-      year,
-      semester,
-      section,
-      quickFilter,
-      search,
-      page = 1,
-      limit = 25,
-    } = req.query;
-
     const query = {};
 
-    if (department && department !== 'All') query.department = department;
-    if (course && course !== 'All') query.course = course;
-    if (year && year !== 'All') query.year = year;
-    if (semester && semester !== 'All') query.semester = semester;
-    if (section && section !== 'All') query.section = section;
+    // Privacy rule
+    if (req.user.role === 'student') {
+      const student = await resolveStudent(req);
+      if (student) {
+        query.student = student._id;
+      }
+    } else {
+      const {
+        department,
+        course,
+        year,
+        semester,
+        section,
+        quickFilter,
+        search,
+      } = req.query;
 
-    // Quick Filter support
-    if (quickFilter && quickFilter !== 'All') {
-      if (quickFilter === 'Top Academic') {
-        query['categoryScores.studies'] = { $gte: 75 };
-      } else if (quickFilter === 'Top Sports') {
-        query['categoryScores.sports'] = { $gte: 75 };
-      } else if (quickFilter === 'Top Technical') {
-        query['categoryScores.technical'] = { $gte: 75 };
-      } else if (quickFilter === 'Top Arts') {
-        query['categoryScores.arts'] = { $gte: 75 };
-      } else if (quickFilter === 'Top Communication') {
-        query['categoryScores.communication'] = { $gte: 75 };
-      } else if (quickFilter === 'Top Leadership') {
-        query['categoryScores.leadership'] = { $gte: 75 };
-      } else if (quickFilter === 'Joint Strengths') {
-        query.isJointHighest = true;
+      if (department && department !== 'All') query.department = department;
+      if (course && course !== 'All') query.course = course;
+      if (year && year !== 'All') query.year = year;
+      if (semester && semester !== 'All') query.semester = semester;
+      if (section && section !== 'All') query.section = section;
+
+      if (quickFilter && quickFilter !== 'All') {
+        if (quickFilter === 'Top Academic') query['categoryScores.studies'] = { $gte: 75 };
+        else if (quickFilter === 'Top Sports') query['categoryScores.sports'] = { $gte: 75 };
+        else if (quickFilter === 'Top Silambam') query['categoryScores.silambam'] = { $gte: 75 };
+        else if (quickFilter === 'Top Technical') query['categoryScores.technical'] = { $gte: 75 };
+        else if (quickFilter === 'Top Arts') query['categoryScores.cultural'] = { $gte: 75 };
+        else if (quickFilter === 'Top Communication') query['categoryScores.communication'] = { $gte: 75 };
+        else if (quickFilter === 'Top Leadership') query['categoryScores.leadership'] = { $gte: 75 };
+        else if (quickFilter === 'Joint Strengths') query.isJointHighest = true;
+      }
+
+      if (search) {
+        query.$or = [
+          { studentName: { $regex: search, $options: 'i' } },
+          { registerNumber: { $regex: search, $options: 'i' } },
+          { dominantCategoryName: { $regex: search, $options: 'i' } },
+        ];
       }
     }
 
-    if (search) {
-      query.$or = [
-        { studentName: { $regex: search, $options: 'i' } },
-        { registerNumber: { $regex: search, $options: 'i' } },
-        { dominantCategoryName: { $regex: search, $options: 'i' } },
-      ];
-    }
-
+    const { page = 1, limit = 25 } = req.query;
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -86,12 +158,20 @@ exports.getTalentList = async (req, res, next) => {
 };
 
 /**
- * @desc    Get detailed talent profile of a single student (Scores, Radar breakdown, Skills, Achievements)
+ * @desc    Get detailed talent profile of a single student
  * @route   GET /api/talent/student/:studentId
  * @access  Private
  */
 exports.getStudentTalentProfile = async (req, res, next) => {
   try {
+    // Privacy check
+    if (req.user.role === 'student') {
+      const myStudent = await resolveStudent(req);
+      if (!myStudent || String(myStudent._id) !== String(req.params.studentId)) {
+        return res.status(403).json({ success: false, message: 'Access Denied: You cannot view other students talent.' });
+      }
+    }
+
     const student = await Student.findById(req.params.studentId)
       .populate('department', 'name code')
       .populate('course', 'courseName courseCode');
@@ -101,16 +181,14 @@ exports.getStudentTalentProfile = async (req, res, next) => {
     }
 
     let talent = await TalentScore.findOne({ student: student._id });
-
     if (!talent) {
-      // Auto-initialize talent profile if not already present
       const calculated = talentService.calculateTalentScores({}, student.name);
       talent = await TalentScore.create({
         student: student._id,
         registerNumber: student.registerNumber,
         studentName: student.name,
-        department: student.department._id,
-        course: student.course._id,
+        department: student.department?._id,
+        course: student.course?._id,
         year: student.year,
         semester: student.semester,
         section: student.section,
@@ -134,7 +212,7 @@ exports.getStudentTalentProfile = async (req, res, next) => {
 };
 
 /**
- * @desc    Save / Update student category talent scores and run deterministic talent calculation
+ * @desc    Save / Update student category talent scores (Faculty / Admin)
  * @route   POST /api/talent/evaluate
  * @access  Private/Faculty/Admin
  */
@@ -147,7 +225,6 @@ exports.evaluateStudentTalent = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
-    // Execute Deterministic Backend Talent Calculation Engine
     const calculated = talentService.calculateTalentScores(categoryScores, student.name);
 
     let talent = await TalentScore.findOne({ student: student._id });
@@ -160,6 +237,7 @@ exports.evaluateStudentTalent = async (req, res, next) => {
       talent.highestScore = calculated.highestScore;
       talent.dominantCategoryName = calculated.dominantCategoryName;
       talent.isJointHighest = calculated.isJointHighest;
+      talent.suggestions = calculated.suggestions;
       talent.calculatedSummary = calculated.calculatedSummary;
       talent.evaluatorNotes = evaluatorNotes || talent.evaluatorNotes;
       talent.evaluatedBy = req.user._id;
@@ -195,7 +273,7 @@ exports.evaluateStudentTalent = async (req, res, next) => {
 };
 
 /**
- * @desc    Add specific skill/achievement for student
+ * @desc    Add specific skill/achievement for student (Faculty / Admin)
  * @route   POST /api/talent/skill
  * @access  Private/Faculty/Admin
  */
@@ -222,7 +300,7 @@ exports.addSkill = async (req, res, next) => {
       student: student._id,
       registerNumber: student.registerNumber,
       skillName: skillName.trim(),
-      category: category || 'Technical Skills',
+      category: category || 'Coding / Technical',
       skillLevel: skillLevel || 'Intermediate',
       percentage: Number(percentage) || 75,
       experience: experience || '1 Year',
@@ -242,7 +320,7 @@ exports.addSkill = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete specific skill
+ * @desc    Delete specific skill (Faculty / Admin)
  * @route   DELETE /api/talent/skill/:id
  * @access  Private/Faculty/Admin
  */

@@ -29,17 +29,23 @@ import {
   UserCheck,
   Compass,
   Database,
-  MapPin,
   Activity,
   Briefcase,
   Users2,
-  Navigation,
+  ClipboardList,
+  FileSpreadsheet,
+  Layers,
+  Search,
 } from 'lucide-react';
 
 export default function Sidebar({ mobileOpen, setMobileOpen }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const serverBase = (API_BASE_URL || '').replace(/\/api\/?$/, '');
+
+  const isStudent = user?.role === 'student';
+  const isFaculty = user?.role === 'faculty';
+  const isAdmin = user?.role === 'admin';
 
   const navItems = [
     {
@@ -49,65 +55,48 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       roles: ['admin', 'faculty', 'student'],
     },
     {
-      label: 'GPS Location Alerts',
-      href: '/location-alerts',
-      icon: AlertTriangle,
-      badge: 'Radar',
-      roles: ['admin', 'faculty'],
+      label: isStudent ? 'My Profile' : 'Student Directory',
+      href: isStudent ? '/settings' : '/students',
+      icon: GraduationCap,
+      badge: !isStudent ? 'Excel' : undefined,
+      roles: ['admin', 'faculty', 'student'],
     },
     {
-      label: 'Live Geo Attendance',
+      label: isStudent ? 'My Attendance' : 'Attendance & GPS',
       href: '/attendance',
       icon: CalendarCheck,
       badge: 'GPS',
       roles: ['admin', 'faculty', 'student'],
     },
     {
-      label: 'Student Directory',
-      href: '/students',
-      icon: GraduationCap,
-      badge: 'Excel',
+      label: 'Attendance Alerts',
+      href: '/location-alerts',
+      icon: AlertTriangle,
+      badge: 'Radar',
       roles: ['admin', 'faculty'],
     },
     {
-      label: 'Department Management',
-      href: '/departments',
-      icon: Building2,
-      roles: ['admin'],
-    },
-    {
-      label: 'Faculty Registry',
-      href: '/faculty',
-      icon: Users,
-      roles: ['admin'],
-    },
-    {
-      label: 'Courses & Subjects',
-      href: '/courses',
-      icon: BookOpen,
-      roles: ['admin', 'faculty'],
-    },
-    {
-      label: 'Marks & Results',
+      label: isStudent ? 'My Marks & Results' : 'Marks & Results',
       href: '/marks',
       icon: Award,
+      badge: !isStudent ? 'Excel' : undefined,
       roles: ['admin', 'faculty', 'student'],
     },
     {
-      label: 'Talent Intelligence',
+      label: isStudent ? 'My Subjects' : 'Courses & Subjects',
+      href: '/courses',
+      icon: BookOpen,
+      roles: ['admin', 'faculty', 'student'],
+    },
+    {
+      label: isStudent ? 'My Talent Intelligence' : 'Talent Intelligence',
       href: '/talent',
       icon: Sparkles,
-      badge: 'AI Engine',
+      badge: '9 Domains',
       roles: ['admin', 'faculty', 'student'],
     },
     {
-      label: 'Student Comparison',
-      href: '/student-comparison',
-      icon: Users2,
-      roles: ['admin', 'faculty'],
-    },
-    {
-      label: 'Progress Reports',
+      label: isStudent ? 'My Progress Report' : 'Student Progress Reports',
       href: '/progress-reports',
       icon: ClipboardList,
       roles: ['admin', 'faculty', 'student'],
@@ -119,33 +108,15 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       roles: ['admin', 'faculty'],
     },
     {
-      label: 'Faculty Workload',
-      href: '/faculty-workload',
-      icon: Briefcase,
-      roles: ['admin', 'faculty'],
-    },
-    {
-      label: 'Talent Analytics',
-      href: '/talent-analytics',
-      icon: BarChart3,
-      roles: ['admin', 'faculty'],
-    },
-    {
-      label: 'Reports & Export',
+      label: isStudent ? 'My Reports & Issues' : 'Student Reports & Issues',
       href: '/reports',
       icon: FileText,
       roles: ['admin', 'faculty', 'student'],
     },
     {
-      label: 'Mentor Dashboard',
-      href: '/mentor',
-      icon: UserCheck,
-      roles: ['admin', 'faculty'],
-    },
-    {
-      label: 'Smart Notice Board',
-      href: '/notices',
-      icon: BellRing,
+      label: isStudent ? 'My Certificates' : 'Certificate Hub',
+      href: '/certificates',
+      icon: FileCheck2,
       roles: ['admin', 'faculty', 'student'],
     },
     {
@@ -155,10 +126,40 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       roles: ['admin', 'faculty', 'student'],
     },
     {
-      label: 'Certificate Hub',
-      href: '/certificates',
-      icon: FileCheck2,
+      label: 'Smart Notice Board',
+      href: '/notices',
+      icon: BellRing,
       roles: ['admin', 'faculty', 'student'],
+    },
+    {
+      label: 'Department Directory',
+      href: '/departments',
+      icon: Building2,
+      roles: ['admin'],
+    },
+    {
+      label: 'Faculty Registry',
+      href: '/faculty',
+      icon: Users,
+      roles: ['admin'],
+    },
+    {
+      label: 'Talent Analytics',
+      href: '/talent-analytics',
+      icon: BarChart3,
+      roles: ['admin', 'faculty'],
+    },
+    {
+      label: 'Mentor Dashboard',
+      href: '/mentor',
+      icon: UserCheck,
+      roles: ['admin', 'faculty'],
+    },
+    {
+      label: 'Faculty Workload',
+      href: '/faculty-workload',
+      icon: Briefcase,
+      roles: ['admin', 'faculty'],
     },
     {
       label: 'College Location',
@@ -182,7 +183,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       label: 'Admin Governance',
       href: '/admins',
       icon: ShieldCheck,
-      badge: 'Protected',
+      badge: 'Master',
       roles: ['admin'],
     },
     {
@@ -193,7 +194,6 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
     },
   ];
 
-  // Filter based on logged in user role
   const visibleNav = navItems.filter((item) =>
     item.roles.some((r) => user && (user.role === r || user.role?.toLowerCase() === r))
   );
@@ -232,7 +232,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
               <div className="flex items-center gap-1.5 mt-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[#D4AF37]">
-                  Academic Portal
+                  CDMS Portal
                 </p>
               </div>
             </div>
@@ -290,7 +290,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
         {/* Navigation Items List */}
         <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-1.5">
           <div className="flex items-center justify-between px-3 pb-2 pt-1 text-[10px] font-extrabold uppercase tracking-widest text-[#D4AF37]/70">
-            <span>Academic Registry</span>
+            <span>{isStudent ? 'My Academic Record' : 'Institutional Registry'}</span>
             <span className="h-1 w-1 rounded-full bg-[#D4AF37]" />
           </div>
 

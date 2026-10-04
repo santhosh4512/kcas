@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getMarks,
+  getMyMarks,
   saveMark,
   batchSaveMarks,
   getStudentMarks,
@@ -16,6 +17,7 @@ const { uploadExcel } = require('../middleware/upload');
 
 router.use(protect);
 
+router.get('/me', getMyMarks);
 router.get('/template', downloadTemplate);
 router.get('/export', exportMarks);
 router.get('/student/:studentId', getStudentMarks);
@@ -27,4 +29,3 @@ router.route('/').get(getMarks).post(authorize('admin', 'faculty'), saveMark);
 router.route('/:id').delete(authorize('admin', 'faculty'), deleteMark);
 
 module.exports = router;
-

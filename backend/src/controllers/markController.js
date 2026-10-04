@@ -8,6 +8,68 @@ const excelService = require('../services/excelService');
 const talentService = require('../services/talentService');
 const XLSX = require('xlsx');
 
+// Helper to resolve student record for the authenticated user
+async function resolveStudent(req) {
+  if (req.user.referenceId) {
+    const s = await Student.findById(req.user.referenceId).populate('department course');
+    if (s) return s;
+  }
+  const byEmail = await Student.findOne({ email: req.user.email }).populate('department course');
+  return byEmail;
+}
+
+/**
+ * @desc    Get authenticated student's personal marks & transcript
+ * @route   GET /api/marks/me
+ * @access  Private (Student)
+ */
+exports.getMyMarks = async (req, res, next) => {
+  try {
+    const student = await resolveStudent(req);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student profile not found.' });
+    }
+
+    const marks = await Mark.find({ student: student._id })
+      .populate('subject', 'subjectName subjectCode credits semester')
+      .populate('department', 'name code')
+      .populate('course', 'courseName courseCode')
+      .sort({ semester: 1, subjectCode: 1 });
+
+    const totalEvaluations = marks.length;
+    const passedEvaluations = marks.filter((m) => m.resultStatus === 'Pass').length;
+    const failedEvaluations = marks.filter((m) => m.resultStatus === 'Fail').length;
+    const totalMarksSum = marks.reduce((acc, m) => acc + (m.totalMark || 0), 0);
+    const overallPercentage = totalEvaluations > 0 ? Math.round((totalMarksSum / totalEvaluations) * 10) / 10 : (student.initialMarks || 75);
+
+    // Group by semester
+    const semesterMap = {};
+    marks.forEach((m) => {
+      const sem = m.semester || 'Semester 1';
+      if (!semesterMap[sem]) {
+        semesterMap[sem] = [];
+      }
+      semesterMap[sem].push(m);
+    });
+
+    res.status(200).json({
+      success: true,
+      student,
+      summary: {
+        totalEvaluations,
+        passedEvaluations,
+        failedEvaluations,
+        overallPercentage,
+        resultStatus: failedEvaluations === 0 && totalEvaluations > 0 ? 'First Class / Exemplary' : failedEvaluations > 0 ? 'Arrear(s) Pending' : 'In Progress',
+      },
+      semesterMarks: semesterMap,
+      allMarks: marks,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * @desc    Get marks with multi-criteria filters & pagination
  * @route   GET /api/marks
@@ -29,12 +91,20 @@ exports.getMarks = async (req, res, next) => {
 
     const query = {};
 
-    if (department && department !== 'All') query.department = department;
-    if (course && course !== 'All') query.course = course;
-    if (semester && semester !== 'All') query.semester = semester;
-    if (subject && subject !== 'All') query.subject = subject;
-    if (resultStatus && resultStatus !== 'All') query.resultStatus = resultStatus;
-    if (grade && grade !== 'All') query.grade = grade;
+    // Privacy rule: Student role can only access their own marks
+    if (req.user.role === 'student') {
+      const student = await resolveStudent(req);
+      if (student) {
+        query.student = student._id;
+      }
+    } else {
+      if (department && department !== 'All') query.department = department;
+      if (course && course !== 'All') query.course = course;
+      if (semester && semester !== 'All') query.semester = semester;
+      if (subject && subject !== 'All') query.subject = subject;
+      if (resultStatus && resultStatus !== 'All') query.resultStatus = resultStatus;
+      if (grade && grade !== 'All') query.grade = grade;
+    }
 
     if (search) {
       query.$or = [
@@ -58,7 +128,6 @@ exports.getMarks = async (req, res, next) => {
       .skip(skip)
       .limit(limitNum);
 
-    // Summary statistics for current filter
     const allFiltered = await Mark.find(query);
     const passCount = allFiltered.filter((m) => m.resultStatus === 'Pass').length;
     const failCount = allFiltered.filter((m) => m.resultStatus === 'Fail').length;
@@ -90,7 +159,7 @@ exports.getMarks = async (req, res, next) => {
 };
 
 /**
- * @desc    Create or update single mark entry
+ * @desc    Create or update single mark entry (Admin / Faculty)
  * @route   POST /api/marks
  * @access  Private/Faculty/Admin
  */
@@ -176,7 +245,7 @@ exports.saveMark = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete a mark record
+ * @desc    Delete a mark record (Admin / Faculty)
  * @route   DELETE /api/marks/:id
  * @access  Private/Faculty/Admin
  */
@@ -197,10 +266,13 @@ exports.deleteMark = async (req, res, next) => {
 /**
  * @desc    Download Marks Excel Template
  * @route   GET /api/marks/template
- * @access  Private
+ * @access  Private/Faculty/Admin
  */
 exports.downloadTemplate = async (req, res, next) => {
   try {
+    if (req.user.role === 'student') {
+      return res.status(403).json({ success: false, message: 'Access Denied.' });
+    }
     const buffer = excelService.generateMarksTemplate();
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=KCAS_Marks_Import_Template.xlsx');
@@ -287,10 +359,10 @@ exports.importMarks = async (req, res, next) => {
 };
 
 /**
-  * @desc    Batch Save marks for an entire cohort / subject
-  * @route   POST /api/marks/batch
-  * @access  Private/Faculty/Admin
-  */
+ * @desc    Batch Save marks for an entire cohort / subject
+ * @route   POST /api/marks/batch
+ * @access  Private/Faculty/Admin
+ */
 exports.batchSaveMarks = async (req, res, next) => {
   try {
     const { subjectId, semester, records } = req.body;
@@ -345,7 +417,7 @@ exports.batchSaveMarks = async (req, res, next) => {
       studentIdsToUpdate.add(student._id.toString());
     }
 
-    // Auto-update student's Studies talent category based on new academic average
+    // Auto-update student's Studies talent category
     for (const sId of studentIdsToUpdate) {
       const allStudentMarks = await Mark.find({ student: sId });
       if (allStudentMarks.length > 0) {
@@ -381,6 +453,14 @@ exports.batchSaveMarks = async (req, res, next) => {
  */
 exports.getStudentMarks = async (req, res, next) => {
   try {
+    // Privacy rule
+    if (req.user.role === 'student') {
+      const myStudent = await resolveStudent(req);
+      if (!myStudent || String(myStudent._id) !== String(req.params.studentId)) {
+        return res.status(403).json({ success: false, message: 'Access Denied: You cannot access other students marks.' });
+      }
+    }
+
     const student = await Student.findById(req.params.studentId)
       .populate('department', 'name code')
       .populate('course', 'courseName courseCode');
@@ -399,7 +479,6 @@ exports.getStudentMarks = async (req, res, next) => {
     const totalMarksSum = marks.reduce((acc, m) => acc + (m.totalMark || 0), 0);
     const overallPercentage = totalEvaluations > 0 ? Math.round((totalMarksSum / totalEvaluations) * 10) / 10 : 0;
 
-    // Group by semester
     const semesterMap = {};
     marks.forEach((m) => {
       const sem = m.semester || 'Semester 1';
@@ -428,12 +507,16 @@ exports.getStudentMarks = async (req, res, next) => {
 };
 
 /**
- * @desc    Export Marks to Excel
+ * @desc    Export Marks to Excel (Admin / Faculty only)
  * @route   GET /api/marks/export
  * @access  Private
  */
 exports.exportMarks = async (req, res, next) => {
   try {
+    if (req.user.role === 'student') {
+      return res.status(403).json({ success: false, message: 'Access Denied: Students are not permitted to export marks datasets.' });
+    }
+
     const { department, course, semester, subject, resultStatus } = req.query;
     const query = {};
     if (department && department !== 'All') query.department = department;
@@ -476,4 +559,3 @@ exports.exportMarks = async (req, res, next) => {
     next(error);
   }
 };
-
