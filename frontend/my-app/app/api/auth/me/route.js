@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import connectDB, { ensureDefaultAdmin } from '@/lib/db';
 import User from '@/lib/models/User';
 
+export const dynamic = 'force-static';
+
 const JWT_SECRET = process.env.JWT_SECRET || 'kcas_super_secure_jwt_secret_key_2026_tier1';
 
 export async function GET(req) {
