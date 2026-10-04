@@ -428,10 +428,10 @@ export default function LoginPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => fillDemo('vinodhini@kcas.edu.in', 'Student@123')}
+                    onClick={() => fillDemo('varshini@kcas.edu.in', 'Student@123')}
                     className="rounded-xl border border-pink-400/50 bg-pink-500/20 p-2 text-[11px] font-black text-pink-200 hover:bg-pink-500/30 transition shadow-xs"
                   >
-                    🎓 Vinodhini
+                    🎓 Varshini
                   </button>
                 </div>
               </div>

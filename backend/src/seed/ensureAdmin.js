@@ -120,47 +120,56 @@ async function ensureDefaultAdmin() {
       console.log(`✅ Faculty (kanimozhi@kcas.edu.in) created.`);
     }
 
-    // 4. Student Accounts linked to Vinodhini A
-    const vinodhiniStudent = await Student.findOne({ registerNumber: '23BCS001' });
+    // 4. Student Accounts linked to Varshini S (23BCS001)
+    const varshiniStudent = await Student.findOne({ registerNumber: '23BCS001' });
 
     let studentUser = await User.findOne({ email: 'student@kcas.edu.in' }).select('+password');
     if (!studentUser) {
       await User.create({
-        name: 'Vinodhini A',
+        name: 'Varshini S',
         email: 'student@kcas.edu.in',
         password: 'Student@123',
         role: 'student',
         designation: 'B.Sc. Computer Science Scholar',
-        referenceId: vinodhiniStudent?._id,
+        referenceId: varshiniStudent?._id,
         roleRefModel: 'Student',
         status: 'Active',
         mustChangePassword: false,
         permissions: ['view_attendance', 'view_marks', 'view_talent', 'view_reports'],
       });
-      console.log(`✅ Default Student (student@kcas.edu.in -> Vinodhini A) created.`);
-    } else if (vinodhiniStudent && String(studentUser.referenceId) !== String(vinodhiniStudent._id)) {
-      studentUser.referenceId = vinodhiniStudent._id;
-      studentUser.name = 'Vinodhini A';
+      console.log(`✅ Default Student (student@kcas.edu.in -> Varshini S) created.`);
+    } else {
+      studentUser.referenceId = varshiniStudent?._id;
+      studentUser.name = 'Varshini S';
       await studentUser.save();
     }
 
-    let vinodhiniDirectUser = await User.findOne({ email: 'vinodhini@kcas.edu.in' }).select('+password');
-    if (!vinodhiniDirectUser) {
+    let varshiniDirectUser = await User.findOne({ email: 'varshini@kcas.edu.in' }).select('+password');
+    if (!varshiniDirectUser) {
       await User.create({
-        name: 'Vinodhini A',
-        email: 'vinodhini@kcas.edu.in',
+        name: 'Varshini S',
+        email: 'varshini@kcas.edu.in',
         password: 'Student@123',
         role: 'student',
         designation: 'B.Sc. Computer Science Scholar',
-        referenceId: vinodhiniStudent?._id,
+        referenceId: varshiniStudent?._id,
         roleRefModel: 'Student',
         status: 'Active',
         mustChangePassword: false,
         permissions: ['view_attendance', 'view_marks', 'view_talent', 'view_reports'],
       });
-      console.log(`✅ Direct Student User (vinodhini@kcas.edu.in) created.`);
-    } else if (vinodhiniStudent && String(vinodhiniDirectUser.referenceId) !== String(vinodhiniStudent._id)) {
-      vinodhiniDirectUser.referenceId = vinodhiniStudent._id;
+      console.log(`✅ Direct Student User (varshini@kcas.edu.in) created.`);
+    } else {
+      varshiniDirectUser.referenceId = varshiniStudent?._id;
+      varshiniDirectUser.name = 'Varshini S';
+      await varshiniDirectUser.save();
+    }
+
+    // Keep vinodhini user as well if existing, mapped to Varshini
+    let vinodhiniDirectUser = await User.findOne({ email: 'vinodhini@kcas.edu.in' });
+    if (vinodhiniDirectUser && varshiniStudent) {
+      vinodhiniDirectUser.name = 'Varshini S';
+      vinodhiniDirectUser.referenceId = varshiniStudent._id;
       await vinodhiniDirectUser.save();
     }
 

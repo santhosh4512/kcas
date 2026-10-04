@@ -186,20 +186,26 @@ async function seedDatabase() {
       });
     }
 
-    // 6. Seed Students (Vinodhini A, Varshini S, Vinisha R, Kavitha R, Abinaya M)
+    // 6. Seed Students (Varshini S, Vinisha R, Kavitha R, Abinaya M)
     const todayDate = new Date().toISOString().split('T')[0];
 
-    // VINODHINI A
-    let vinodhini = await Student.findOne({ registerNumber: '23BCS001' });
-    if (!vinodhini) {
-      vinodhini = await Student.create({
+    // Clean up any email collision before seeding
+    await Student.updateMany(
+      { email: 'varshini@kcas.edu.in', registerNumber: { $ne: '23BCS001' } },
+      { $set: { email: 'kavitha@kcas.edu.in', name: 'Kavitha M' } }
+    );
+
+    // VARSHINI S (Primary Student 23BCS001)
+    let varshini = await Student.findOne({ registerNumber: '23BCS001' });
+    if (!varshini) {
+      varshini = await Student.create({
         studentId: 'STU-2026-001',
         registerNumber: '23BCS001',
         rollNumber: 'CS2301',
-        name: 'Vinodhini A',
+        name: 'Varshini S',
         dateOfBirth: '2004-05-12',
         gender: 'Female',
-        email: 'vinodhini@kcas.edu.in',
+        email: 'varshini@kcas.edu.in',
         phone: '94421 99881',
         address: 'No. 14, Gandhi Nagar, Thenmathur, Tiruvannamalai - 606603',
         department: csDept._id,
@@ -222,19 +228,23 @@ async function seedDatabase() {
           { category: 'Communication', skillName: 'Tamil & English Oratory', proficiency: 'Advanced' },
         ],
       });
+    } else {
+      varshini.name = 'Varshini S';
+      varshini.email = 'varshini@kcas.edu.in';
+      await varshini.save();
     }
 
-    // VARSHINI S
-    let varshini = await Student.findOne({ registerNumber: '23BCS002' });
-    if (!varshini) {
-      varshini = await Student.create({
+    // KAVITHA M (Student 23BCS002)
+    let kavitha = await Student.findOne({ registerNumber: '23BCS002' });
+    if (!kavitha) {
+      kavitha = await Student.create({
         studentId: 'STU-2026-002',
         registerNumber: '23BCS002',
         rollNumber: 'CS2302',
-        name: 'Varshini S',
+        name: 'Kavitha M',
         dateOfBirth: '2004-08-14',
         gender: 'Female',
-        email: 'varshini@kcas.edu.in',
+        email: 'kavitha@kcas.edu.in',
         phone: '98421 11223',
         address: 'No. 24, Car Street, Tiruvannamalai - 606601',
         department: csDept._id,
@@ -282,9 +292,9 @@ async function seedDatabase() {
       });
     }
 
-    // Seed Talent Score for Vinodhini A with exact scores: Academic: 93%, Silambam: 95%, Dance: 82%, Communication: 78%, Technical: 90%
-    let vinodhiniTalent = await TalentScore.findOne({ student: vinodhini._id });
-    const vinodhiniCalc = talentService.calculateTalentScores(
+    // Seed Talent Score for Varshini S with exact scores: Academic: 93%, Silambam: 95%, Dance: 82%, Communication: 78%, Technical: 90%
+    let varshiniTalent = await TalentScore.findOne({ student: varshini._id });
+    const varshiniCalc = talentService.calculateTalentScores(
       {
         studies: 93,
         silambam: 95,
@@ -296,43 +306,10 @@ async function seedDatabase() {
         leadership: 80,
         other: 70,
       },
-      vinodhini.name
+      varshini.name
     );
 
-    if (!vinodhiniTalent) {
-      await TalentScore.create({
-        student: vinodhini._id,
-        registerNumber: vinodhini.registerNumber,
-        studentName: vinodhini.name,
-        department: csDept._id,
-        course: bscCs._id,
-        year: vinodhini.year,
-        semester: vinodhini.semester,
-        section: vinodhini.section,
-        ...vinodhiniCalc,
-      });
-    } else {
-      Object.assign(vinodhiniTalent, vinodhiniCalc);
-      await vinodhiniTalent.save();
-    }
-
-    // Seed Talent for Varshini S
-    let varshiniTalent = await TalentScore.findOne({ student: varshini._id });
     if (!varshiniTalent) {
-      const varshiniCalc = talentService.calculateTalentScores(
-        {
-          studies: 96,
-          communication: 92,
-          technical: 85,
-          leadership: 88,
-          sports: 70,
-          cultural: 80,
-          silambam: 65,
-          dance: 70,
-          other: 75,
-        },
-        varshini.name
-      );
       await TalentScore.create({
         student: varshini._id,
         registerNumber: varshini.registerNumber,
@@ -344,21 +321,25 @@ async function seedDatabase() {
         section: varshini.section,
         ...varshiniCalc,
       });
+    } else {
+      Object.assign(varshiniTalent, varshiniCalc);
+      varshiniTalent.studentName = varshini.name;
+      await varshiniTalent.save();
     }
 
-    // Seed Marks for Vinodhini A
+    // Seed Marks for Varshini S
     const csSubjects = await Subject.find({ course: bscCs._id, semester: 'Semester 3' });
     for (const sub of csSubjects) {
-      let mark = await Mark.findOne({ student: vinodhini._id, subject: sub._id });
+      let mark = await Mark.findOne({ student: varshini._id, subject: sub._id });
       let score = sub.subjectCode === 'CS301' ? 88 : sub.subjectCode === 'CS302' ? 92 : sub.subjectCode === 'CS303' ? 85 : 94;
       let intM = Math.round((score * 25) / 100);
       let extM = score - intM;
 
       if (!mark) {
         await Mark.create({
-          student: vinodhini._id,
-          registerNumber: vinodhini.registerNumber,
-          studentName: vinodhini.name,
+          student: varshini._id,
+          registerNumber: varshini.registerNumber,
+          studentName: varshini.name,
           department: csDept._id,
           course: bscCs._id,
           semester: 'Semester 3',
@@ -372,14 +353,17 @@ async function seedDatabase() {
           grade: score >= 90 ? 'O' : score >= 80 ? 'A+' : score >= 70 ? 'A' : 'B',
           resultStatus: score >= 40 ? 'Pass' : 'Fail',
         });
+      } else {
+        mark.studentName = varshini.name;
+        await mark.save();
       }
     }
 
-    // Seed Certificates for Vinodhini A
+    // Seed Certificates for Varshini S
     let cert1 = await Certificate.findOne({ title: 'State Level Silambam Championship Gold Medalist' });
     if (!cert1) {
       await Certificate.create({
-        student: vinodhini._id,
+        student: varshini._id,
         title: 'State Level Silambam Championship Gold Medalist',
         category: 'Sports',
         issuer: 'Tamil Nadu Traditional Silambam Federation',
@@ -392,7 +376,7 @@ async function seedDatabase() {
     let cert2 = await Certificate.findOne({ title: 'Full Stack Cloud Developer Professional Certification' });
     if (!cert2) {
       await Certificate.create({
-        student: vinodhini._id,
+        student: varshini._id,
         title: 'Full Stack Cloud Developer Professional Certification',
         category: 'Technical',
         issuer: 'NPTEL / IIT Madras',
@@ -420,9 +404,9 @@ async function seedDatabase() {
         status: 'Upcoming',
         participants: [
           {
-            student: vinodhini._id,
-            studentName: vinodhini.name,
-            registerNumber: vinodhini.registerNumber,
+            student: varshini._id,
+            studentName: varshini.name,
+            registerNumber: varshini.registerNumber,
             departmentName: 'Department of Computer Science',
             status: 'Registered',
           },
@@ -445,9 +429,9 @@ async function seedDatabase() {
         status: 'Completed',
         participants: [
           {
-            student: vinodhini._id,
-            studentName: vinodhini.name,
-            registerNumber: vinodhini.registerNumber,
+            student: varshini._id,
+            studentName: varshini.name,
+            registerNumber: varshini.registerNumber,
             departmentName: 'Department of Computer Science',
             status: 'Attended',
           },
@@ -480,27 +464,18 @@ async function seedDatabase() {
         section: 'A',
         subject: csSubjects[0]._id,
         date: todayDate,
-        totalStudents: 3,
-        presentCount: 3,
+        totalStudents: 2,
+        presentCount: 2,
         absentCount: 0,
         records: [
-          {
-            student: vinodhini._id,
-            registerNumber: vinodhini.registerNumber,
-            status: 'Present',
-            isGeoVerified: true,
-            verificationMethod: 'GPS_CAMPUS',
-            checkInTime: '09:05 AM',
-            geoCoordinates: { latitude: 12.1905865, longitude: 79.0837848, distanceMeters: 120 },
-          },
           {
             student: varshini._id,
             registerNumber: varshini.registerNumber,
             status: 'Present',
             isGeoVerified: true,
             verificationMethod: 'GPS_CAMPUS',
-            checkInTime: '09:10 AM',
-            geoCoordinates: { latitude: 12.1905865, longitude: 79.0837848, distanceMeters: 240 },
+            checkInTime: '09:05 AM',
+            geoCoordinates: { latitude: 12.1905865, longitude: 79.0837848, distanceMeters: 120 },
           },
           {
             student: vinisha._id,
