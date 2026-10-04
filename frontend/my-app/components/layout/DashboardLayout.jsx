@@ -66,10 +66,10 @@ export default function DashboardLayout({ children, title, subtitle, allowedRole
   }
 
   return (
-    <div className="min-h-screen classic-modern-canvas font-sans antialiased text-[#1A202C] relative selection:bg-[#6D1B29] selection:text-[#FAF0E6]">
+    <div className="min-h-screen bg-[#F8FAFC] font-sans antialiased text-slate-900 relative selection:bg-[#6D1B29] selection:text-white">
       {/* Neo-classic background subtle lighting */}
-      <div className="fixed top-0 right-0 -z-10 h-[600px] w-[600px] rounded-full bg-gradient-to-bl from-[#C5A059]/10 via-[#6D1B29]/5 to-transparent blur-3xl pointer-events-none" />
-      <div className="fixed bottom-0 left-72 -z-10 h-[500px] w-[500px] rounded-full bg-gradient-to-tr from-[#0E1B2E]/5 via-[#162A45]/5 to-transparent blur-3xl pointer-events-none" />
+      <div className="fixed top-0 right-0 -z-10 h-[500px] w-[500px] rounded-full bg-gradient-to-bl from-[#C5A059]/10 via-[#6D1B29]/5 to-transparent blur-3xl pointer-events-none" />
+      <div className="fixed bottom-0 left-72 -z-10 h-[500px] w-[500px] rounded-full bg-gradient-to-tr from-slate-200/40 via-blue-50/30 to-transparent blur-3xl pointer-events-none" />
 
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
 

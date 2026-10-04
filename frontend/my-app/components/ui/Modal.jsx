@@ -34,24 +34,24 @@ export default function Modal({
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-300"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
       />
 
       {/* Modal Card */}
       <div
-        className={`relative z-10 w-full ${maxWidth} overflow-hidden rounded-3xl border-2 border-[#D4AF37]/40 bg-[#0F172A] text-white backdrop-blur-2xl shadow-2xl shadow-[#D4AF37]/10 transition-all duration-300`}
+        className={`relative z-10 w-full ${maxWidth} overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-2xl transition-all duration-300`}
       >
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-[#D4AF37]/20 px-6 py-5 bg-slate-900/95">
+        <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5 bg-slate-50/80">
           <div>
-            <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+            <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
               <span>{title}</span>
             </h3>
-            {subtitle && <p className="mt-0.5 text-xs font-medium text-slate-400">{subtitle}</p>}
+            {subtitle && <p className="mt-0.5 text-xs font-semibold text-slate-500">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-800 transition"
           >
             <X className="h-5 w-5" />
           </button>

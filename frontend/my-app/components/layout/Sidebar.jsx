@@ -210,14 +210,14 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 flex w-72 flex-col border-r border-[#D4AF37]/25 bg-[#070B14] text-[#F8FAFC] transition-transform duration-300 lg:translate-x-0 shadow-2xl ${
+        className={`fixed top-0 bottom-0 left-0 z-40 flex w-72 flex-col border-r border-[#C5A059]/30 bg-[#0B132B] text-slate-100 transition-transform duration-300 lg:translate-x-0 shadow-2xl ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Classic Institutional Header */}
-        <div className="flex h-22 items-center justify-between border-b border-[#D4AF37]/25 px-5 bg-gradient-to-b from-[#0F172A] to-transparent">
+        <div className="flex h-22 items-center justify-between border-b border-[#C5A059]/30 px-5 bg-gradient-to-b from-[#16223F] to-[#0B132B]">
           <Link href="/dashboard" className="flex items-center gap-3 group">
-            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl border-2 border-[#D4AF37] bg-white p-1 shadow-md group-hover:scale-105 transition-transform">
+            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl border-2 border-[#C5A059] bg-white p-1 shadow-md group-hover:scale-105 transition-transform">
               <Image
                 src="/assets/images/kcas-logo.png"
                 alt="KCAS Crest"
@@ -230,8 +230,8 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                 Kamban College
               </h2>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#D4AF37]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#C5A059] animate-pulse" />
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#C5A059]">
                   CDMS Portal
                 </p>
               </div>

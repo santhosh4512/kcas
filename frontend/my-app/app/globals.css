@@ -1,20 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0B1120;
-  --foreground: #F8FAFC;
-  --card-bg: rgba(15, 23, 42, 0.85);
-  --card-border: rgba(212, 175, 55, 0.25);
-  --card-hover-border: rgba(212, 175, 55, 0.65);
-  --oxford-navy: #090D16;
-  --oxford-blue: #0F172A;
-  --royal-maroon: #581C28;
-  --crimson-deep: #3B0B14;
-  --antique-gold: #D4AF37;
-  --gold-champagne: #F3E5AB;
-  --gold-glow: #FDE047;
-  --sand-ivory: #F8FAFC;
-  --parchment-border: #1E293B;
+  /* Core Institutional Palette */
+  --kcas-maroon: #6D1B29;
+  --kcas-maroon-dark: #4A0E18;
+  --kcas-maroon-light: #8C2234;
+  --kcas-gold: #C5A059;
+  --kcas-gold-light: #F3E5AB;
+  --kcas-gold-dark: #9A7B39;
+  
+  /* Primary Layout Palette (Pristine High-Contrast Modern Canvas) */
+  --canvas-bg: #F8FAFC;
+  --canvas-surface: #FFFFFF;
+  --canvas-surface-subtle: #F1F5F9;
+  --canvas-border: #E2E8F0;
+  --canvas-border-strong: #CBD5E1;
+  
+  /* Deep High-Legibility Typography */
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --text-inverse: #FFFFFF;
+
+  /* Accent Vibrancy */
+  --accent-emerald: #059669;
+  --accent-blue: #2563EB;
+  --accent-amber: #D97706;
+  --accent-rose: #E11D48;
 }
 
 * {
@@ -27,19 +39,14 @@ html {
 
 body {
   margin: 0;
-  background-color: #070B14;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(212, 175, 55, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(88, 28, 40, 0.15) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(15, 23, 42, 0.5) 0px, transparent 50%),
-    radial-gradient(rgba(212, 175, 55, 0.06) 1px, transparent 0);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px;
-  background-attachment: fixed;
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #F8FAFC;
+  color: var(--text-primary);
+  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Classic & Academic Headings */
 .font-classic {
   font-family: var(--font-classic), 'Cinzel', 'Playfair Display', Georgia, serif;
 }
@@ -57,78 +64,91 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Custom Sleek Gold Scrollbar */
+/* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #090D16;
+  background: #F1F5F9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D4AF37;
+  background: #CBD5E1;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #F5D77F;
+  background: #94A3B8;
 }
 
-/* Luxury Glassmorphic Neo-Modern Card */
-.classic-card {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(212, 175, 55, 0.2);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px -5px rgba(212, 175, 55, 0.05);
+/* High-Definition Dashboard Canvas */
+.classic-modern-canvas {
+  background-color: #F8FAFC;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(109, 27, 41, 0.04) 0px, transparent 40%),
+    radial-gradient(at 100% 0%, rgba(197, 160, 89, 0.06) 0px, transparent 40%),
+    radial-gradient(at 50% 100%, rgba(15, 23, 42, 0.03) 0px, transparent 50%);
+  background-attachment: fixed;
 }
 
-.classic-card-hover {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+/* Luxury Card with Crisp Edge */
+.kcas-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.classic-card-hover:hover {
-  transform: translateY(-4px);
-  border-color: rgba(212, 175, 55, 0.6);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 25px 2px rgba(212, 175, 55, 0.18);
+.kcas-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
 }
 
-/* Luxury Gold Foil Gradient Text */
-.gold-foil-text {
-  background: linear-gradient(135deg, #FFE082 0%, #D4AF37 40%, #FFF8DC 70%, #AA771C 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+/* Royal Gold & Maroon Pill */
+.royal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #FAF0E6;
+  color: #6D1B29;
+  border: 1px solid rgba(197, 160, 89, 0.4);
 }
 
-.royal-header-gradient {
-  background: linear-gradient(135deg, #090D16 0%, #0F172A 40%, #3B0B14 80%, #581C28 100%);
+/* Interactive Button Hover Glow */
+.btn-kcas-primary {
+  background: linear-gradient(135deg, #6D1B29 0%, #4A0E18 100%);
+  color: #FFFFFF;
+  border: 1px solid rgba(197, 160, 89, 0.5);
+  box-shadow: 0 4px 14px 0 rgba(109, 27, 41, 0.3);
+  transition: all 0.2s ease;
 }
 
-.classic-gold-border {
-  border: 1px solid #D4AF37;
+.btn-kcas-primary:hover {
+  background: linear-gradient(135deg, #8C2234 0%, #6D1B29 100%);
+  border-color: #C5A059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px 0 rgba(109, 27, 41, 0.4);
 }
 
-.classic-gold-accent {
-  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.4);
+.btn-kcas-gold {
+  background: linear-gradient(135deg, #C5A059 0%, #DFB76C 100%);
+  color: #0E1B2E;
+  font-weight: 800;
+  box-shadow: 0 4px 14px 0 rgba(197, 160, 89, 0.35);
+  transition: all 0.2s ease;
 }
 
-/* Neon Glow Utilities */
-.glow-gold {
-  box-shadow: 0 0 20px -3px rgba(212, 175, 55, 0.35);
-}
-
-.glow-emerald {
-  box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.35);
-}
-
-.glow-cyan {
-  box-shadow: 0 0 20px -3px rgba(6, 182, 212, 0.35);
-}
-
-.glow-maroon {
-  box-shadow: 0 0 20px -3px rgba(140, 34, 52, 0.4);
+.btn-kcas-gold:hover {
+  background: linear-gradient(135deg, #DFB76C 0%, #F3E5AB 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px 0 rgba(197, 160, 89, 0.5);
 }
 
 /* Shimmer Animation */
@@ -142,7 +162,7 @@ a {
 }
 
 .shimmer-badge {
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.15) 0%, rgba(253, 224, 71, 0.35) 50%, rgba(212, 175, 55, 0.15) 100%);
+  background: linear-gradient(90deg, rgba(197, 160, 89, 0.15) 0%, rgba(243, 229, 171, 0.4) 50%, rgba(197, 160, 89, 0.15) 100%);
   background-size: 200% 100%;
   animation: shimmer 3s infinite linear;
 }

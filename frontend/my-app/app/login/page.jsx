@@ -255,16 +255,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center bg-radial from-slate-900 via-slate-950 to-black p-4 sm:p-6 lg:p-8 font-[Inter,sans-serif] text-slate-100 relative overflow-hidden">
-      {/* Background Glow Accents */}
-      <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen flex flex-col justify-center relative p-4 sm:p-6 lg:p-8 font-sans text-slate-100 overflow-hidden">
+      {/* Full-Screen Campus Image Background */}
+      <div className="absolute inset-0 z-0">
+        <Image
+          src="/assets/images/kcas-campus.jpg"
+          alt="Kamban College Campus"
+          fill
+          className="object-cover object-center"
+          priority
+        />
+        {/* Deep Royal Maroon & Midnight Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-[#2B050D]/85 to-[#0B132B]/85 backdrop-blur-[2px]" />
+      </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 my-auto py-8">
         {/* Logo & Header */}
         <div className="text-center">
           <Link href="/" className="inline-block group">
-            <div className="relative mx-auto h-16 w-16 overflow-hidden rounded-2xl bg-white p-2 shadow-xl ring-2 ring-white/20 transition group-hover:scale-105">
+            <div className="relative mx-auto h-16 w-16 overflow-hidden rounded-2xl bg-white p-2 shadow-2xl ring-2 ring-[#C5A059] transition group-hover:scale-105">
               <Image
                 src="/assets/images/kcas-logo.png"
                 alt="KCAS Logo"
@@ -275,34 +284,34 @@ export default function LoginPage() {
             </div>
           </Link>
 
-          <h2 className="mt-4 text-xl font-black uppercase tracking-tight text-white sm:text-2xl">
+          <h2 className="mt-4 text-xl font-black uppercase tracking-tight text-white sm:text-2xl drop-shadow-md">
             Kamban College
           </h2>
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#C5A059]">
-            Department Management & Talent Intelligence
+          <p className="text-xs font-bold uppercase tracking-widest text-[#F3E5AB] drop-shadow-sm mt-0.5">
+            Department Management System (CDMS)
           </p>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="text-[11px] text-stone-300 mt-1">
             Thenmathur, Tiruvannamalai – 606 603
           </p>
         </div>
 
         {/* Card */}
-        <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.06] p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+        <div className="mt-6 rounded-3xl border-2 border-[#C5A059]/40 bg-[#0B132B]/85 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
           {/* Tabs: Sign In / Create Account */}
-          <div className="mb-6 flex rounded-2xl bg-black/30 p-1 border border-white/10">
+          <div className="mb-6 flex rounded-2xl bg-black/40 p-1 border border-white/15">
             <button
               type="button"
               onClick={() => {
                 setActiveTab('login');
                 setFormError('');
               }}
-              className={`flex-1 rounded-xl py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+              className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                 activeTab === 'login'
-                  ? 'bg-[#701A28] text-white shadow-md'
+                  ? 'bg-[#6D1B29] text-white shadow-md border border-[#C5A059]/50'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <KeyRound className="h-3.5 w-3.5" />
+              <KeyRound className="h-3.5 w-3.5 text-[#F3E5AB]" />
               Sign In
             </button>
             <button
@@ -311,21 +320,21 @@ export default function LoginPage() {
                 setActiveTab('register');
                 setFormError('');
               }}
-              className={`flex-1 rounded-xl py-2 text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+              className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                 activeTab === 'register'
-                  ? 'bg-[#701A28] text-white shadow-md'
+                  ? 'bg-[#6D1B29] text-white shadow-md border border-[#C5A059]/50'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <UserPlus className="h-3.5 w-3.5" />
+              <UserPlus className="h-3.5 w-3.5 text-[#F3E5AB]" />
               Create Account
             </button>
           </div>
 
           {/* Form Error Banner */}
           {formError && (
-            <div className="mb-4 p-3 rounded-2xl bg-rose-500/15 border border-rose-400/30 text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+            <div className="mb-4 p-3 rounded-2xl bg-rose-500/20 border border-rose-400/50 text-rose-200 text-xs flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-300" />
               <span>{formError}</span>
             </div>
           )}
@@ -334,11 +343,11 @@ export default function LoginPage() {
           {activeTab === 'login' && (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-slate-200 mb-1">
                   Institutional Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#F3E5AB]" />
                   <input
                     type="email"
                     required
@@ -347,16 +356,16 @@ export default function LoginPage() {
                       setEmail(e.target.value);
                       setFormError('');
                     }}
-                    placeholder="santhoshsiva754@gmail.com"
-                    className="w-full rounded-2xl border border-white/15 bg-white/5 pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-[#C5A059] focus:bg-white/10 focus:outline-hidden transition"
+                    placeholder="vinodhini@kcas.edu.in"
+                    className="w-full rounded-2xl border border-white/20 bg-white/10 pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-400 focus:border-[#C5A059] focus:bg-white/15 focus:outline-hidden transition"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Password</label>
+                <label className="block text-xs font-bold text-slate-200 mb-1">Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#F3E5AB]" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
@@ -366,12 +375,12 @@ export default function LoginPage() {
                       setFormError('');
                     }}
                     placeholder="••••••••"
-                    className="w-full rounded-2xl border border-white/15 bg-white/5 pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:border-[#C5A059] focus:bg-white/10 focus:outline-hidden transition"
+                    className="w-full rounded-2xl border border-white/20 bg-white/10 pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-400 focus:border-[#C5A059] focus:bg-white/15 focus:outline-hidden transition"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -381,52 +390,48 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#701A28] hover:bg-[#58111A] py-3 text-xs font-bold text-white shadow-lg shadow-[#701A28]/30 transition disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#8C2234] via-[#6D1B29] to-[#4A0E18] hover:brightness-110 py-3 text-xs font-black text-white shadow-xl border border-[#C5A059]/60 transition disabled:opacity-50"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>
-                      {loadingTime > 4
-                        ? `Waking up cloud server (${loadingTime}s)...`
-                        : 'Signing in...'}
-                    </span>
+                    <span>Signing in...</span>
                   </div>
                 ) : (
                   <>
                     Sign In to Portal
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-4 w-4 text-[#F3E5AB]" />
                   </>
                 )}
               </button>
 
               {/* 1-Click Demo Accounts */}
-              <div className="mt-6 pt-5 border-t border-white/10">
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 text-center mb-2.5">
+              <div className="mt-6 pt-5 border-t border-white/15">
+                <span className="block text-[10px] font-black uppercase tracking-widest text-[#F3E5AB] text-center mb-2.5">
                   ⚡ 1-Click Demo Accounts
                 </span>
 
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <button
                     type="button"
-                    onClick={() => fillDemo('santhoshsiva754@gmail.com', '12345678')}
-                    className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-2 text-[11px] font-bold text-amber-300 hover:bg-amber-500/20 transition"
+                    onClick={() => fillDemo('admin@kcas.edu.in', 'Admin@123')}
+                    className="rounded-xl border border-amber-400/50 bg-amber-500/20 p-2 text-[11px] font-black text-amber-200 hover:bg-amber-500/30 transition shadow-xs"
                   >
                     👑 Admin
                   </button>
                   <button
                     type="button"
-                    onClick={() => fillDemo('faculty@kcas.edu.in', 'Faculty@123')}
-                    className="rounded-xl border border-teal-400/30 bg-teal-500/10 p-2 text-[11px] font-bold text-teal-300 hover:bg-teal-500/20 transition"
+                    onClick={() => fillDemo('kanimozhi@kcas.edu.in', 'faculty123')}
+                    className="rounded-xl border border-teal-400/50 bg-teal-500/20 p-2 text-[11px] font-black text-teal-200 hover:bg-teal-500/30 transition shadow-xs"
                   >
                     👩‍🏫 Faculty
                   </button>
                   <button
                     type="button"
-                    onClick={() => fillDemo('student@kcas.edu.in', 'Student@123')}
-                    className="rounded-xl border border-purple-400/30 bg-purple-500/10 p-2 text-[11px] font-bold text-purple-300 hover:bg-purple-500/20 transition"
+                    onClick={() => fillDemo('vinodhini@kcas.edu.in', 'Student@123')}
+                    className="rounded-xl border border-pink-400/50 bg-pink-500/20 p-2 text-[11px] font-black text-pink-200 hover:bg-pink-500/30 transition shadow-xs"
                   >
-                    🎓 Student
+                    🎓 Vinodhini
                   </button>
                 </div>
               </div>
